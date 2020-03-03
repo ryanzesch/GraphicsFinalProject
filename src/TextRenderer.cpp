@@ -18,7 +18,37 @@ using namespace std;
 	
 // Initialize characters array
 void initChars(std::map<GLchar, Character> Characters, FT_Library library, FT_Face face) {
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Disable byte-alignment restriction
+    
+}
+
+TextRenderer::TextRenderer(std::string font_location)
+{
+    // Load typeface
+	FT_Library  library;
+	FT_Face     face;
+    int error =  FT_Init_FreeType( &library );
+	if(error) {
+		cout << "Failed to load freetype" << endl;
+		exit(1);
+	}
+	string s = font_location;
+	const char * font_name = s.c_str();
+	error = FT_New_Face( library,
+                     font_name,
+                     0,
+                     &face );
+	if ( error == FT_Err_Unknown_File_Format )
+	{
+		cout << "font unsupported" << endl;
+		exit(1);
+	}
+	else if ( error )
+	{
+		cout << "failed to load font" << endl;
+		exit(1);
+	}
+	FT_Set_Pixel_Sizes(face, 0, 48);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Disable byte-alignment restriction
     
     for (GLubyte c = 0; c < 128; c++)
     {
@@ -56,42 +86,11 @@ void initChars(std::map<GLchar, Character> Characters, FT_Library library, FT_Fa
             face->glyph->advance.x
         };
         Characters.insert(std::pair<GLchar, Character>(c, character));
+        cout << Characters.size() << endl;
     }
-}
-
-TextRenderer::TextRenderer(std::string font_location)
-{
-    // Load typeface
-	FT_Library  library;
-	FT_Face     face;
-    int error =  FT_Init_FreeType( &library );
-	if(error) {
-		cout << "Failed to load freetype" << endl;
-		exit(1);
-	}
-	string s = font_location;
-	const char * font_name = s.c_str();
-	error = FT_New_Face( library,
-                     font_name,
-                     0,
-                     &face );
-	if ( error == FT_Err_Unknown_File_Format )
-	{
-		cout << "font unsupported" << endl;
-		exit(1);
-	}
-	else if ( error )
-	{
-		cout << "failed to load font" << endl;
-		exit(1);
-	}
-	FT_Set_Pixel_Sizes(face, 0, 48);
-	initChars(Characters, library, face);  
 	FT_Done_Face(face);
 	FT_Done_FreeType(library);
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glBindVertexArray(VAO);
@@ -105,22 +104,15 @@ TextRenderer::TextRenderer(std::string font_location)
 
 void TextRenderer::RenderText(shared_ptr<Program> textprog, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color, float win_w, float win_h)
 {
-    
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);   
 
     // Activate corresponding render state	
     textprog->bind();
+    glEnable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
     std::shared_ptr<MatrixStack> Proj = make_shared<MatrixStack>();
-    Proj->ortho(0.0f, win_w, 10.0f, win_h, 0.0f, 100.0f);
-    glUniformMatrix4fv(textprog->getUniform("projection"), 1, GL_FALSE, value_ptr(Proj->topMatrix()));
+    Proj->ortho(0.0f, win_w, 0.0f, win_h, 10.0f, 100.0f);
+    glUniformMatrix4fv(textprog->getUniform("projection"), 1, GL_FALSE, value_ptr(glm::ortho(0.0f,800.0f,0.0f,600.0f) ));
     glUniform3f(textprog->getUniform("textcolor"), color.x, color.y, color.z);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(VAO);
@@ -130,7 +122,7 @@ void TextRenderer::RenderText(shared_ptr<Program> textprog, std::string text, GL
     for (c = text.begin(); c != text.end(); c++)
     {
         Character ch = Characters[*c];
-
+        
         GLfloat xpos = x + ch.Bearing.x * scale;
         GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
         GLfloat w = ch.Size.x * scale;
@@ -158,10 +150,10 @@ void TextRenderer::RenderText(shared_ptr<Program> textprog, std::string text, GL
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
-
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
     textprog->unbind();
 }
-
 
 TextRenderer::~TextRenderer()
 {

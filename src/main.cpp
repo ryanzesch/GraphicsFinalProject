@@ -938,7 +938,7 @@ public:
 		Projection->popMatrix();
 		View->popMatrix();
 
-		textRenderer->RenderText(text_prog,"render me daddy",200,200,10.0f,vec3(1,0,1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "render me daddy", 200.0f, 200.0f,1.0f,vec3(1,0,1),win_w,win_h);
 	}
 };
 
