@@ -938,7 +938,9 @@ public:
 		Projection->popMatrix();
 		View->popMatrix();
 
-		textRenderer->RenderText(text_prog, "render me daddy", 200.0f, 200.0f,1.0f,vec3(1,0,1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Health: " + to_string(0) + "/" + to_string(75), 50.0f, 650.0f,0.5f,vec3(1,.1,.1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Energy: " + to_string(0) + "/" + to_string(3), 50.0f, 620.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Refresh: " + to_string(0) + "s", 50.0f, 590.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
 	}
 };
 

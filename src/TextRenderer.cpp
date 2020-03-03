@@ -15,11 +15,6 @@
 #include FT_FREETYPE_H
 
 using namespace std;
-	
-// Initialize characters array
-void initChars(std::map<GLchar, Character> Characters, FT_Library library, FT_Face face) {
-    
-}
 
 TextRenderer::TextRenderer(std::string font_location)
 {
@@ -86,7 +81,6 @@ TextRenderer::TextRenderer(std::string font_location)
             face->glyph->advance.x
         };
         Characters.insert(std::pair<GLchar, Character>(c, character));
-        cout << Characters.size() << endl;
     }
 	FT_Done_Face(face);
 	FT_Done_FreeType(library);
@@ -110,9 +104,7 @@ void TextRenderer::RenderText(shared_ptr<Program> textprog, std::string text, GL
     glEnable(GL_BLEND);
     glEnable(GL_CULL_FACE);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
-    std::shared_ptr<MatrixStack> Proj = make_shared<MatrixStack>();
-    Proj->ortho(0.0f, win_w, 0.0f, win_h, 10.0f, 100.0f);
-    glUniformMatrix4fv(textprog->getUniform("projection"), 1, GL_FALSE, value_ptr(glm::ortho(0.0f,800.0f,0.0f,600.0f) ));
+    glUniformMatrix4fv(textprog->getUniform("projection"), 1, GL_FALSE, value_ptr(glm::ortho(0.0f,win_w,0.0f,win_h) ));
     glUniform3f(textprog->getUniform("textcolor"), color.x, color.y, color.z);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(VAO);
