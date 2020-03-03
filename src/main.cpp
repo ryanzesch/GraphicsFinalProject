@@ -519,6 +519,8 @@ public:
 		auto View = make_shared<MatrixStack>();
 		auto Model = make_shared<MatrixStack>();
 
+		// ***** Camera + Player Positioning **************************************************
+
 		// Pitch and yaw of camera
 		glfwGetCursorPos(windowManager->getHandle(), &mouse_x, &mouse_y);
 		double delta_x = mouse_x - win_w/2;
@@ -555,12 +557,14 @@ public:
 
 		// Dolly camera
 		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_W) == GLFW_PRESS) {
-			pos += viewdir * speed;
-			lookat += viewdir * speed;
+			vec3 walkdir = normalize(vec3(viewdir.x,0,viewdir.z)) * speed;
+			pos += walkdir;
+			lookat += walkdir;
 		}
 		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_S) == GLFW_PRESS) {
-			pos -= viewdir * speed;
-			lookat -= viewdir * speed;
+			vec3 walkdir = normalize(vec3(viewdir.x,0,viewdir.z)) * speed;
+			pos -= walkdir;
+			lookat -= walkdir;
 		}
 
 		// Strafe camera
@@ -581,11 +585,9 @@ public:
 		Projection->pushMatrix();
 			Projection->perspective(fov, aspect, 0.01f, 100.0f);
 
+		// ***** Card Logic *******************************************************
 
-		// ***** Card Logic *****
-		//cout << "hand: " << hand.size() << " draw: " << drawpile.size() << " discard: " << discard.size() << " thrown: " << thrown_cards.size() << " stuck: " << stuck_cards.size() << endl;
-
-		// Put more cards in hand
+		// Put more cards in hand if empty
 		if (hand.size() == 0) {
 			for (int i=0; i<5; i++) {
 				if (drawpile.empty()) {
@@ -603,7 +605,7 @@ public:
 		// Move hand down if throwing
 		float handshift = 0;
 		if (hand_state == HAND_THROWING) {
-			handshift = 1.5*pow((glfwGetTime() - throw_start - throw_duration/2), 2) - .0938;
+			handshift = 1.9*pow((glfwGetTime() - throw_start - throw_duration/2), 2) - .13;
 		}
 		if (glfwGetTime() > throw_start + throw_duration) {
 			hand_state = HAND_READY;
@@ -673,7 +675,7 @@ public:
 		}
 
 
-		// ***** Card Texture Prog *****
+		// ***** Card Texture Prog *****************************************************************
 
 		card_prog->bind();
 		glUniformMatrix4fv(card_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
@@ -705,7 +707,7 @@ public:
 
 		card_prog->unbind();
 
-		// ***** Floor Texture Prog *****
+		// ***** Floor Texture Prog *****************************************************************
 
 		floor_prog->bind();
 		glUniformMatrix4fv(floor_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
@@ -737,7 +739,7 @@ public:
 
 		floor_prog->unbind();
 
-		// ***** Untextured Prog *****
+		// ***** Untextured Prog **********************************************************************
 
 		prog->bind();
 		glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
@@ -774,7 +776,7 @@ public:
 			SetMaterial(3);
 			Model->pushMatrix();
 				// Move down if throwing
-				Model->translate(vec3(0,handshift,0));
+				Model->translate(-handshift * normalize(cross(viewdir,cross(viewdir, upvec))));
 				// Move down of center
 				Model->translate((.02f + 0.005f * float(pow(abs((hand.size() - 1)/2.0f - float(selected_card)),2))) * normalize(cross(viewdir,cross(viewdir, upvec))));
 				// Move left of center
@@ -935,7 +937,7 @@ public:
 
 		prog->unbind();
 
-		// ***** Skybox *****
+		// ***** Skybox **********************************************************************
 
 		cube_prog->bind();
 		glUniformMatrix4fv(cube_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
