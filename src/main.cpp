@@ -603,12 +603,14 @@ public:
 		// Move hand down if throwing
 		float handshift = 0;
 		if (hand_state == HAND_THROWING) {
-			handshift = 1.5*pow((glfwGetTime() - throw_start - throw_duration/2), 2) - .1;
+			handshift = 1.5*pow((glfwGetTime() - throw_start - throw_duration/2), 2) - .0938;
 		}
 		if (glfwGetTime() > throw_start + throw_duration) {
 			hand_state = HAND_READY;
 		}
+		// Actually throw the card halfway through the animation
 		else if (glfwGetTime() > throw_start + throw_duration/2 && !has_activated_card) {
+			
 			has_activated_card = true;
 			mycard = hand[selected_card];
 
@@ -652,7 +654,7 @@ public:
 		//Check thrown cards for collision with Sentries
 		for (int j=0; j<sentries.size(); j++) {
 			i = 0;
-			vec3 senxyz  =sentries[j]->pos;
+			vec3 senxyz  =sentries[j]->hitboxpos;
 			float sentop = sentries[j]->top;
 			float senbot = sentries[j]->bottom;
 

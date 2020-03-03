@@ -13,6 +13,7 @@
 enum sentry_state
 {
     SENTRY_ALIVE,
+	SENTRY_DYING,
 	SENTRY_DEAD
 };
 
@@ -24,6 +25,7 @@ public:
 	Sentry();
 	virtual ~Sentry();
 	glm::vec3 pos;
+	glm::vec3 hitboxpos;
     void drawSentry(std::shared_ptr<Program> prog, std::vector<std::shared_ptr<Multishape>> meshes);
 	const float rotateDuration = 3;
 	float rotateDelay = 10;
@@ -36,6 +38,16 @@ public:
 	int state = SENTRY_ALIVE;
 	bool charging = false;
     bool firing = false;
+	float accel = 0;
+	glm::vec3 top_vel = glm::vec3(0);
+	glm::vec3 mid_vel = glm::vec3(0);
+	glm::vec3 bot_vel = glm::vec3(0);
+	glm::vec3 top_pos_offset = glm::vec3(0);
+	glm::vec3 mid_pos_offset = glm::vec3(0);
+	glm::vec3 bot_pos_offset = glm::vec3(0);
+	float timeofdeath = -1;
+	float timesincedeath = 0;
+
 };
 
 
