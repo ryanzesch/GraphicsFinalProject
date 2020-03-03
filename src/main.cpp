@@ -107,10 +107,18 @@ public:
 	vector<shared_ptr<Card>> discard;
 	vector<shared_ptr<Card>> thrown_cards;
 	vector<shared_ptr<Card>> stuck_cards;
+	enum handstate {
+		HAND_READY,
+		HAND_THROWING
+	};
+	int hand_state = HAND_READY;
+	float throw_start = 0;
+	float throw_duration = .5;
+	bool has_activated_card = false;
 
 	// Player health  block
 	int block = 0;
-	int health = 80;
+	int health = 75;
 
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
@@ -137,7 +145,7 @@ public:
 			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 		}
 		if (key == GLFW_KEY_E && action == GLFW_RELEASE) {
-			if (hand.size() > 0) {
+			if (hand.size() > 0 && hand_state == HAND_READY) {
 				if (selected_card == 0) {
 					selected_card = hand.size() -1;
 				}
@@ -145,44 +153,18 @@ public:
 					selected_card = (selected_card - 1) % hand.size();
 				}
 			}
-			else {
-				selected_card = -1;
-			}
 		}
 		if (key == GLFW_KEY_Q && action == GLFW_RELEASE) {
-			if (hand.size() > 0) {
+			if (hand.size() > 0 && hand_state == HAND_READY) {
 				selected_card = (selected_card + 1) % hand.size();
-			}
-			else {
-				selected_card = -1;
 			}
 		}
 		// Throw cards
-		if (key == GLFW_KEY_F && action == GLFW_RELEASE && hand.size() > 0) {
-			mycard = hand[selected_card];
-
-			// Put the card in our discard pile
-			hand.erase(hand.begin() + selected_card);
-			discard.push_back(mycard);
-			selected_card = std::max(selected_card-1, 0);
-
-			// Throw the card if it can be thrown
-			if (mycard->throwable) {
-				thrown_cards.push_back(mycard->throwCard(pos, viewdir, theta));
-			}
-			// Draw cards if needed
-			for (int i=0; i<mycard->draw; i++) {
-				if (drawpile.empty()) {
-					drawpile = discard;
-					discard = {};
-					random_shuffle(drawpile.begin(), drawpile.end());
-				}
-				mycard = drawpile[0];
-				drawpile.erase(drawpile.begin());
-				hand.push_back(mycard);
-			}
-			// Gain block if needed
-			block += mycard->block;
+		if (key == GLFW_KEY_F && action == GLFW_RELEASE && hand.size() > 0 && throw_start + throw_duration < glfwGetTime()) {
+			// Throwing bookkeeping
+			throw_start = glfwGetTime();
+			hand_state = HAND_THROWING;
+			has_activated_card = false;
 		}
 	}
 
@@ -618,6 +600,42 @@ public:
 			selected_card = 0;
 		}
 
+		// Move hand down if throwing
+		float handshift = 0;
+		if (hand_state == HAND_THROWING) {
+			handshift = 1.5*pow((glfwGetTime() - throw_start - throw_duration/2), 2) - .1;
+		}
+		if (glfwGetTime() > throw_start + throw_duration) {
+			hand_state = HAND_READY;
+		}
+		else if (glfwGetTime() > throw_start + throw_duration/2 && !has_activated_card) {
+			has_activated_card = true;
+			mycard = hand[selected_card];
+
+			// Put the card in our discard pile
+			hand.erase(hand.begin() + selected_card);
+			discard.push_back(mycard);
+			selected_card = std::max(selected_card-1, 0);
+
+			// Throw the card if it can be thrown
+			if (mycard->throwable) {
+				thrown_cards.push_back(mycard->throwCard(pos, viewdir, theta));
+			}
+			// Draw cards if needed
+			for (int i=0; i<mycard->draw; i++) {
+				if (drawpile.empty()) {
+					drawpile = discard;
+					discard = {};
+					random_shuffle(drawpile.begin(), drawpile.end());
+				}
+				mycard = drawpile[0];
+				drawpile.erase(drawpile.begin());
+				hand.push_back(mycard);
+			}
+			// Gain block if needed
+			block += mycard->block;
+		}
+
 		//Check thrown cards for collision with floor / ceiling
 		int i = 0;
 		while(i < thrown_cards.size()) {
@@ -668,7 +686,7 @@ public:
 		// Draw cards in left hand
 		for (int i=0; i < hand.size(); i++) {
 			SetCardTex(hand[i]->card_id % 3);
-			hand[i]->drawHandCard(card_prog,meshes,i,hand.size(),phi,theta,pos,viewdir);
+			hand[i]->drawHandCard(card_prog,meshes,i,hand.size(),phi,theta,pos,viewdir,handshift);
 		}
 
 		// Drawn thrown cards
@@ -753,6 +771,8 @@ public:
 			// Draw card selector
 			SetMaterial(3);
 			Model->pushMatrix();
+				// Move down if throwing
+				Model->translate(vec3(0,handshift,0));
 				// Move down of center
 				Model->translate((.02f + 0.005f * float(pow(abs((hand.size() - 1)/2.0f - float(selected_card)),2))) * normalize(cross(viewdir,cross(viewdir, upvec))));
 				// Move left of center
@@ -938,8 +958,9 @@ public:
 		Projection->popMatrix();
 		View->popMatrix();
 
-		textRenderer->RenderText(text_prog, "Health: " + to_string(0) + "/" + to_string(75), 50.0f, 650.0f,0.5f,vec3(1,.1,.1),win_w,win_h);
-		textRenderer->RenderText(text_prog, "Energy: " + to_string(0) + "/" + to_string(3), 50.0f, 620.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Block  : " + to_string(block), 50.0f, 680.0f,0.5f,vec3(.1,.1,1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Health : " + to_string(health) + "/" + to_string(75), 50.0f, 650.0f,0.5f,vec3(1,.1,.1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Energy : " + to_string(0) + "/" + to_string(3), 50.0f, 620.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
 		textRenderer->RenderText(text_prog, "Refresh: " + to_string(0) + "s", 50.0f, 590.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
 	}
 };

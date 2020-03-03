@@ -31,7 +31,7 @@ class Card
 public:
 	Card(int id);
 	virtual ~Card();
-    void drawHandCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes, int handidx, int handsize, double phi, double theta, glm::vec3 pos, glm::vec3 viewdir);
+    void drawHandCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes, int handidx, int handsize, double phi, double theta, glm::vec3 pos, glm::vec3 viewdir, double voffset);
     void drawThrownCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes);
     std::shared_ptr<Card> throwCard(glm::vec3 campos, glm::vec3 camview, double curtheta);
     void makeStuck();

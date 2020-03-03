@@ -46,7 +46,7 @@ void setCardModel(std::shared_ptr<Program> prog, std::shared_ptr<MatrixStack>M) 
     glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M->topMatrix()));
 }
 
-void Card::drawHandCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes, int handidx, int handsize, double phi, double theta, glm::vec3 pos, glm::vec3 viewdir) {
+void Card::drawHandCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes, int handidx, int handsize, double phi, double theta, glm::vec3 pos, glm::vec3 viewdir, double voffset) {
     if (state != CARD_HAND) {
         cout << "uh oh - card wasn't in hand!" << endl;
         exit(1);
@@ -59,6 +59,8 @@ void Card::drawHandCard(std::shared_ptr<Program>  prog, std::vector<std::shared_
     int strike = 8;
 
     Model->pushMatrix();
+        // Move down if throwing
+        Model->translate(glm::vec3(0,voffset,0));
         // Move down of center
         Model->translate((.08f + 0.005f * float(pow(abs((handsize-1)/2.0f - float(handidx)),2))) * glm::normalize(cross(viewdir,cross(viewdir, glm::vec3(0,1,0)))));
         // Move left of center
