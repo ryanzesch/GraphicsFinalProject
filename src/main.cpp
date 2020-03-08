@@ -120,6 +120,10 @@ public:
 	int block = 0;
 	int health = 75;
 
+	// Sentry shooting data
+	float lastshot = 0;
+	float shootdelay = 10;
+
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
 
@@ -457,19 +461,14 @@ public:
 	}  
 
 	void initSentries() {
-		//center, firing
-		mysentry = make_shared<Sentry>();
-		mysentry->pos.x = 0;
-		mysentry->pos.z = 0;
-		sentries.push_back(mysentry);
-		vector<int> sen_x = {-1,1,4,-3,0,-2,-3};
-		vector<int> sen_z = {0,0,-2,7,-4,2,-2};
+
+		vector<int> sen_x = {0,-1,1,4,-3,0,-2,-3};
+		vector<int> sen_z = {0,0,0,-2,7,-4,2,-2};
 
 		for (int i=0; i< sen_x.size(); i++) {
 			mysentry = make_shared<Sentry>();
 			mysentry->pos.x = sen_x[i];
 			mysentry->pos.z = sen_z[i];
-			mysentry->canFire = false;
 			sentries.push_back(mysentry);
 		}
 	}
@@ -674,6 +673,35 @@ public:
 			}
 		}
 
+		// Perform various operations on sentries
+		while (i<sentries.size()) {
+			// Update player position
+			if (!sentries[i]->charging) {
+				sentries[i]->playerPos = pos;
+			}
+			// Deal damage to the player if needed
+			if (sentries[i]->firing && !sentries[i]->hasDealtDamage) {
+				vec3 shootdir = sentries[i]->playerPos - sentries[i]->pos;
+				shootdir.y = 0;
+				shootdir = normalize(shootdir);
+				// Check if the player is being hit by the laser using a plane and distance to the shoot dir
+				if (dot(shootdir, sentries[i]->pos - pos) < 0 &&
+				    length(cross(pos - sentries[i]->pos, pos - sentries[i]->pos + shootdir)) < .3 ) {
+					block -= 9;
+					if (block < 0) {
+						health += block;
+						block = 0;
+					}
+					sentries[i]->hasDealtDamage = true;
+				}	
+			}
+			// Discard dead sentries
+			if (sentries[i]->state == SENTRY_DEAD) {
+				sentries.erase(sentries.begin() + i);
+				i--;
+			}
+			i++;
+		}
 
 		// ***** Card Texture Prog *****************************************************************
 
@@ -962,9 +990,9 @@ public:
 		Projection->popMatrix();
 		View->popMatrix();
 
-		textRenderer->RenderText(text_prog, "Block  : " + to_string(block), 50.0f, 680.0f,0.5f,vec3(.1,.1,1),win_w,win_h);
-		textRenderer->RenderText(text_prog, "Health : " + to_string(health) + "/" + to_string(75), 50.0f, 650.0f,0.5f,vec3(1,.1,.1),win_w,win_h);
-		textRenderer->RenderText(text_prog, "Energy : " + to_string(0) + "/" + to_string(3), 50.0f, 620.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Block: " + to_string(block), 50.0f, 680.0f,0.5f,vec3(.1,.1,1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Health: " + to_string(health) + "/" + to_string(75), 50.0f, 650.0f,0.5f,vec3(1,.1,.1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Energy: " + to_string(0) + "/" + to_string(3), 50.0f, 620.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
 		textRenderer->RenderText(text_prog, "Refresh: " + to_string(0) + "s", 50.0f, 590.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
 	}
 };

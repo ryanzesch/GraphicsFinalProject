@@ -17,6 +17,8 @@ using namespace std;
 Sentry::Sentry()
 {
     rotateOffset = (rand() % 6280) / 1000.0f; 
+    rotateDelay = (abs(rand()) % 80) / 4.0 + 5;
+    lastRotate = 3 + (abs(rand()) % 80) / 4.0; 
 }
 
 void setSentryModel(std::shared_ptr<Program> prog, std::shared_ptr<MatrixStack>M) {
@@ -84,23 +86,23 @@ void Sentry::drawSentry(std::shared_ptr<Program>  prog, std::vector<std::shared_
     int sen_bot = 0;
     int sen_top = 1;
     int sen_mid = 2;
-    
-    charging = false;
-    firing = false;
 
     double amount = 0;
     if (canFire) {
+        //nStart firing
         if (curTime > lastRotate + rotateDelay) {
             lastRotate = curTime;
+            hasDealtDamage = false;
         }
-        //Currently firing
+        // Currently firing
         if (curTime > lastRotate && lastRotate + rotateDuration > curTime) {
             charging = true;
             // Value between 0 and 1
             amount = pow(3,(-3.215*pow(curTime-lastRotate-.5*rotateDuration,2)));
-            if (amount > .8) {
-                firing = true;
-            }
+            firing = amount > .8;
+        }
+        else {
+            charging = false;
         }
     }
 
@@ -164,7 +166,10 @@ void Sentry::drawSentry(std::shared_ptr<Program>  prog, std::vector<std::shared_
             Model->translate(meshes[sentry]->shapes[sen_mid]->getCenter());	
             if(firing) {
                 Model->pushMatrix();
-                    Model->rotate(2,glm::vec3(0,-1,0));
+                    glm::vec3 shootdir = playerPos - pos;
+                    shootdir.y = 0;
+                    float delta = shootdir.z > 0 ? 1 : -1;
+                    Model->rotate(-acos(dot(normalize(shootdir), glm::vec3(1,0,0))) * delta ,glm::vec3(0,1,0));
                     Model->translate(glm::vec3(200,0,0));
                     Model->scale(glm::vec3(20,(amount-.8)*5,(amount-.8)*5));			
                     setSentryModel(prog, Model);

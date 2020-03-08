@@ -32,6 +32,7 @@ public:
 	float lastRotate = 3;
 	float rotateOffset = 0;
 	bool canFire = true;
+	bool hasDealtDamage = false;
 	float top = 1;
 	float bottom = 0;
 	int health = 40;
@@ -45,6 +46,7 @@ public:
 	glm::vec3 top_pos_offset = glm::vec3(0);
 	glm::vec3 mid_pos_offset = glm::vec3(0);
 	glm::vec3 bot_pos_offset = glm::vec3(0);
+	glm::vec3 playerPos = glm::vec3(0);
 	float timeofdeath = -1;
 	float timesincedeath = 0;
 
