@@ -53,6 +53,7 @@ public:
 	std::shared_ptr<Program> cube_prog;
 	std::shared_ptr<Program> floor_prog;
 	std::shared_ptr<Program> text_prog;
+	std::shared_ptr<Program> slash_prog;
 
 	// Shape to be used (from  file) - modify to support multiple
 	shared_ptr<Shape> mesh;
@@ -107,6 +108,7 @@ public:
 	vector<shared_ptr<Card>> discard;
 	vector<shared_ptr<Card>> thrown_cards;
 	vector<shared_ptr<Card>> stuck_cards;
+	vector<shared_ptr<Card>> slashing_cards;
 	enum handstate {
 		HAND_READY,
 		HAND_THROWING
@@ -116,9 +118,12 @@ public:
 	float throw_duration = .5;
 	bool has_activated_card = false;
 
-	// Player health  block
+	// Player data
 	int block = 0;
 	int health = 75;
+	int energy = 3;
+	int refresh = 5;
+	float refreshtime = 5;
 
 	// Sentry shooting data
 	float lastshot = 0;
@@ -164,11 +169,22 @@ public:
 			}
 		}
 		// Throw cards
-		if (key == GLFW_KEY_F && action == GLFW_RELEASE && hand.size() > 0 && throw_start + throw_duration < glfwGetTime()) {
+		if (key == GLFW_KEY_F && action == GLFW_RELEASE && hand.size() > 0 && throw_start + throw_duration < glfwGetTime() && energy > 0) {
 			// Throwing bookkeeping
 			throw_start = glfwGetTime();
 			hand_state = HAND_THROWING;
 			has_activated_card = false;
+			energy -= 1;
+		}
+		// Draw a new hand
+		if (key == GLFW_KEY_R && refreshtime < glfwGetTime()) {
+			refreshtime = glfwGetTime() + 5;
+			energy = 3;
+			while(hand.size() > 0) {
+				mycard = hand[0];
+				hand.erase(hand.begin() );
+				discard.push_back(mycard);
+			}
 		}
 	}
 
@@ -666,12 +682,21 @@ public:
 					0 > - pow(cardpos.y - senbot, 2)/4.0f + pow(cardpos.x - senxyz.x, 2) + pow(cardpos.z - senxyz.z, 2) &&
 					cardpos.y < sentop && cardpos.y > senbot ) {
 					sentries[j]->health -= thrown_cards[i]->damage;
+					mycard = thrown_cards[i];
+					mycard->state = CARD_SLASH;
+					slashing_cards.push_back(mycard);
 					thrown_cards.erase(thrown_cards.begin() + i);
 					i--;
 				}
 				i++;
 			}
 		}
+
+		cout << slashing_cards.size() << endl;
+
+		refresh = std::max((int)floor(refreshtime - glfwGetTime()), 0);
+
+		// ***** Sentry Logic ***************************************************************************
 
 		// Perform various operations on sentries
 		while (i<sentries.size()) {
@@ -731,6 +756,12 @@ public:
 		for (int i=0; i< stuck_cards.size(); i++) {
 			SetCardTex(stuck_cards[i]->card_id % 3);
 			stuck_cards[i]->drawStuckCard(card_prog,meshes);
+		}
+
+		// Drawn cards doing the slash animation
+		for (int i=0; i< slashing_cards.size(); i++) {
+			SetCardTex(slashing_cards[i]->card_id % 3);
+			slashing_cards[i]->drawSlashingCard(card_prog,meshes,phi,theta,viewdir);
 		}
 
 		card_prog->unbind();
@@ -992,8 +1023,8 @@ public:
 
 		textRenderer->RenderText(text_prog, "Block: " + to_string(block), 50.0f, 680.0f,0.5f,vec3(.1,.1,1),win_w,win_h);
 		textRenderer->RenderText(text_prog, "Health: " + to_string(health) + "/" + to_string(75), 50.0f, 650.0f,0.5f,vec3(1,.1,.1),win_w,win_h);
-		textRenderer->RenderText(text_prog, "Energy: " + to_string(0) + "/" + to_string(3), 50.0f, 620.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
-		textRenderer->RenderText(text_prog, "Refresh: " + to_string(0) + "s", 50.0f, 590.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Energy: " + to_string(energy) + "/" + to_string(3), 50.0f, 620.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
+		textRenderer->RenderText(text_prog, "Refresh: " + to_string(refresh) + "s", 50.0f, 590.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
 	}
 };
 

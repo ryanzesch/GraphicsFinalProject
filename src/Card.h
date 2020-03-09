@@ -14,7 +14,8 @@ enum card_state
 {
     CARD_HAND,
     CARD_THROWN,
-    CARD_STUCK
+    CARD_STUCK,
+    CARD_SLASH
 };
 
 enum card_img_id
@@ -33,6 +34,7 @@ public:
 	virtual ~Card();
     void drawHandCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes, int handidx, int handsize, double phi, double theta, glm::vec3 pos, glm::vec3 viewdir, float voffset);
     void drawThrownCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes);
+    void drawSlashingCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes, double phi, double curtheta, glm::vec3 viewdir);
     std::shared_ptr<Card> throwCard(glm::vec3 campos, glm::vec3 camview, double curtheta);
     void makeStuck();
     void drawStuckCard(std::shared_ptr<Program>  prog, std::vector<std::shared_ptr<Multishape>> meshes);
@@ -53,6 +55,7 @@ public:
     glm::vec3 throwdir = glm::vec3(0,0,0);
     double theta = 0;
     double curtime = 0;
+    int slashFrame = 1;
 
 };
 
