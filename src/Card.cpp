@@ -167,7 +167,7 @@ void Card::makeStuck() {
     state = CARD_STUCK;
 }
 
-void Card::drawSlashingCard(std::shared_ptr<Program> prog, std::vector<std::shared_ptr<Multishape>> meshes, double phi, double curtheta, glm::vec3 viewdir) {
+void Card::drawSlashingCard(std::shared_ptr<Program> prog, std::vector<std::shared_ptr<Multishape>> meshes, double curtheta) {
 
     if (state != CARD_SLASH) {
         cout << "uh oh - card wasn't slashing!" << endl;
@@ -178,14 +178,15 @@ void Card::drawSlashingCard(std::shared_ptr<Program> prog, std::vector<std::shar
     Model->loadIdentity();
 
     // From an enum in main
-    int slash = 8;
+    int slash = 12;
 
     Model->pushMatrix();
         Model->translate(pos);
         // Rotate to face the camera
         Model->rotate(-theta, glm::vec3(0,1,0));
+        Model->rotate(3.14/2, glm::vec3(0,0,1));
         // Scale to size
-        Model->scale(glm::vec3(.5/(meshes[slash]->max.y - meshes[slash]->min.y)));
+        Model->scale(glm::vec3(.6/(meshes[slash]->max.x - meshes[slash]->min.x)));
         setCardModel(prog, Model);
         meshes[slash]->shapes[0]->draw(prog);
     Model->popMatrix();

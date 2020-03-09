@@ -65,6 +65,12 @@ public:
 	shared_ptr<Texture> texture1;
 	shared_ptr<Texture> texture2;
 	shared_ptr<Texture> texture3;
+	shared_ptr<Texture> slash1;
+	shared_ptr<Texture> slash2;
+	shared_ptr<Texture> slash3;
+	shared_ptr<Texture> slash4;
+	shared_ptr<Texture> slash5;
+	shared_ptr<Texture> slash6;
 
 	// Skybox
 	vector<std::string> faces {
@@ -292,6 +298,29 @@ public:
 		}
 	}
 
+	void SetSlashTex(int i) {
+		switch (i) {
+		case 1: //Strike
+		slash1->bind(slash_prog->getUniform("Texture0"));
+		break;
+		case 2: //Strike
+		slash2->bind(slash_prog->getUniform("Texture0"));
+		break;
+		case 3: //Strike
+		slash3->bind(slash_prog->getUniform("Texture0"));
+		break;
+		case 4: //Strike
+		slash4->bind(slash_prog->getUniform("Texture0"));
+		break;
+		case 5: //Strike
+		slash5->bind(slash_prog->getUniform("Texture0"));
+		break;
+		case 6: //Strike
+		slash6->bind(slash_prog->getUniform("Texture0"));
+		break;
+		}
+	}
+
 
 	void init(const std::string& resourceDirectory)
 	{
@@ -393,6 +422,27 @@ public:
 		text_prog->addUniform("text");
 		text_prog->addUniform("textcolor");
 		text_prog->addAttribute("vertex");
+
+		// Initialize the texture GLSL program.
+		slash_prog = make_shared<Program>();
+		slash_prog->setVerbose(true);
+		slash_prog->setShaderNames(resourceDirectory + "/slash_tex_vert.glsl", resourceDirectory + "/slash_tex_frag.glsl");
+		slash_prog->init();
+		slash_prog->addUniform("P");
+		slash_prog->addUniform("V");
+		slash_prog->addUniform("M");
+		slash_prog->addUniform("lightPos");
+		slash_prog->addAttribute("vertPos");
+		slash_prog->addAttribute("vertNor");
+		slash_prog->addAttribute("vertTex");
+		slash_prog->addUniform("MatAmb");
+		slash_prog->addUniform("MatDif");
+		slash_prog->addUniform("MatSpec");
+		slash_prog->addUniform("shine");
+		slash_prog->addUniform("cameraLoc");
+		slash_prog->addUniform("lightIntensity");
+		slash_prog->addUniform("lightDropoff");
+		slash_prog->addUniform("Texture0");
 	}
 
 	void initGeom(const std::string& resourceDirectory)
@@ -449,6 +499,36 @@ public:
 		texture3->init();
 		texture3->setUnit(2);
 		texture3->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+		slash1 = make_shared<Texture>();
+		slash1->setFilename(resourceDirectory + "/slash/slash1.jpg");
+		slash1->init();
+		slash1->setUnit(2);
+		slash1->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+		slash2 = make_shared<Texture>();
+		slash2->setFilename(resourceDirectory + "/slash/slash2.jpg");
+		slash2->init();
+		slash2->setUnit(2);
+		slash2->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+		slash3 = make_shared<Texture>();
+		slash3->setFilename(resourceDirectory + "/slash/slash3.jpg");
+		slash3->init();
+		slash3->setUnit(2);
+		slash3->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+		slash4 = make_shared<Texture>();
+		slash4->setFilename(resourceDirectory + "/slash/slash4.jpg");
+		slash4->init();
+		slash4->setUnit(2);
+		slash4->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+		slash5 = make_shared<Texture>();
+		slash5->setFilename(resourceDirectory + "/slash/slash5.jpg");
+		slash5->init();
+		slash5->setUnit(2);
+		slash5->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+		slash6 = make_shared<Texture>();
+		slash6->setFilename(resourceDirectory + "/slash/slash6.jpg");
+		slash6->init();
+		slash6->setUnit(2);
+		slash6->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 	}
 
 	unsigned int createSky(string dir, vector<string> faces) {
@@ -692,9 +772,7 @@ public:
 			}
 		}
 
-		cout << slashing_cards.size() << endl;
-
-		refresh = std::max((int)floor(refreshtime - glfwGetTime()), 0);
+		refresh = std::max((int)ceil(refreshtime - glfwGetTime()), 0);
 
 		// ***** Sentry Logic ***************************************************************************
 
@@ -758,13 +836,38 @@ public:
 			stuck_cards[i]->drawStuckCard(card_prog,meshes);
 		}
 
+		card_prog->unbind();
+
+
+		// ***** Slash Texture Prog *****************************************************************
+
+		slash_prog->bind();
+		glUniformMatrix4fv(slash_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		glUniformMatrix4fv(slash_prog->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
+
+		// Set up light and camera location
+		glUniform3f(slash_prog->getUniform("lightIntensity"), furnacecol.x, furnacecol.y, furnacecol.z);
+		glUniform3f(slash_prog->getUniform("lightDropoff"), 1.0, 0.05, 0.0);
+		glUniform3f(slash_prog->getUniform("cameraLoc"), pos.x, pos.y, pos.z);
+		glUniform3f(slash_prog->getUniform("lightPos"), furnacelight.x, furnacelight.y, furnacelight.z);
+
 		// Drawn cards doing the slash animation
-		for (int i=0; i< slashing_cards.size(); i++) {
-			SetCardTex(slashing_cards[i]->card_id % 3);
-			slashing_cards[i]->drawSlashingCard(card_prog,meshes,phi,theta,viewdir);
+		i = 0;
+		while (i< slashing_cards.size()) {
+			SetSlashTex(1);
+			if (slashing_cards[i]->slashFrame < 18) {
+				SetSlashTex(ceil(slashing_cards[i]->slashFrame / 3));
+				slashing_cards[i]->drawSlashingCard(slash_prog,meshes,theta);
+				slashing_cards[i]->slashFrame += 1;
+			}
+			else {
+				slashing_cards.erase(slashing_cards.begin() + i);
+				i--;
+			}
+			i++;
 		}
 
-		card_prog->unbind();
+		slash_prog->unbind();
 
 		// ***** Floor Texture Prog *****************************************************************
 
