@@ -130,6 +130,7 @@ public:
 	int energy = 3;
 	int refresh = 5;
 	float refreshtime = 5;
+	bool noclip = false;
 
 	// Sentry shooting data
 	float lastshot = 0;
@@ -191,6 +192,16 @@ public:
 				hand.erase(hand.begin() );
 				discard.push_back(mycard);
 			}
+		}
+		// Turn on "God Mode"
+		if (key == GLFW_KEY_G && action == GLFW_RELEASE) {
+			energy = 9999;
+			health = 9999;
+			block = 9999;
+		}
+		// Turn on noclip
+		if (key == GLFW_KEY_N && action == GLFW_RELEASE) {
+			noclip = true;
 		}
 	}
 
@@ -614,6 +625,9 @@ public:
 		auto View = make_shared<MatrixStack>();
 		auto Model = make_shared<MatrixStack>();
 
+		// Light updating
+		furnacecol = vec3(1, .75 + .05*sin(glfwGetTime() * .5), .6 + .05*sin(glfwGetTime() * .5));
+
 		// ***** Camera + Player Positioning **************************************************
 
 		// Pitch and yaw of camera
@@ -653,11 +667,17 @@ public:
 		// Dolly camera
 		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_W) == GLFW_PRESS) {
 			vec3 walkdir = normalize(vec3(viewdir.x,0,viewdir.z)) * speed;
+			if (noclip) {
+				walkdir = normalize(viewdir) * speed;
+			}
 			pos += walkdir;
 			lookat += walkdir;
 		}
 		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_S) == GLFW_PRESS) {
 			vec3 walkdir = normalize(vec3(viewdir.x,0,viewdir.z)) * speed;
+			if (noclip) {
+				walkdir = normalize(viewdir) * speed;
+			}
 			pos -= walkdir;
 			lookat -= walkdir;
 		}
@@ -916,23 +936,6 @@ public:
 		// Draw
 		Model->pushMatrix();
 			Model->loadIdentity();
-
-			// Draw a grid to help visualize scale, activated with "P"
-			if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_P) == GLFW_PRESS) {
-				for (int i=-5; i<5; i++) {
-					for (int j=-5; j<5; j++) {
-						for (int k=-5; k<5; k++) {
-							Model->pushMatrix();
-								
-								Model->translate(vec3(i,j,k));
-								Model->scale(vec3(.05/(meshes[sphere]->max.y - meshes[sphere]->min.y)));
-								setModel(prog, Model);
-								meshes[sphere]->shapes[0]->draw(prog);
-							Model->popMatrix();
-						}
-					}
-				}
-			}
 
 			// Draw card selector
 			SetMaterial(3);

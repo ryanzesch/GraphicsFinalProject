@@ -186,6 +186,7 @@ void Card::drawSlashingCard(std::shared_ptr<Program> prog, std::vector<std::shar
         Model->rotate(-theta, glm::vec3(0,1,0));
         Model->rotate(3.14/2, glm::vec3(0,0,1));
         // Scale to size
+        Model->scale(glm::vec3(1,1,2));
         Model->scale(glm::vec3(.6/(meshes[slash]->max.x - meshes[slash]->min.x)));
         setCardModel(prog, Model);
         meshes[slash]->shapes[0]->draw(prog);
