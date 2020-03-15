@@ -34,9 +34,10 @@ using namespace glm;
 void initQuad();
 
 // Bookkeeping of out obj's
-const char *obj_files[] = {"/sphere.obj", "/dummy.obj", "/bunnyNoNorm.obj", "/sentry.obj", "/laser.obj", "/floor.obj", "/pillar.obj", "/dog.obj", 
-	"/card.obj", "/cube.obj", "/myfurnace.obj", "/furnacelogs.obj", "/tile.obj", "/sph_float.obj", "/semisph_float.obj", "/pyr_float.obj", "/icosa_float.obj"};
-enum obj_idx {sphere, dummy, bunnyNoNorm, sentry, laser, floormod, wall, dog, strike, cube, furnace, logs, floortile, sph, semsph, pyr, icosa};
+const char *obj_files[] = {"/sentry.obj", "/laser.obj", "/floor.obj", "/pillar.obj", 
+	"/card.obj", "/cube.obj", "/myfurnace.obj", "/furnacelogs.obj", "/tile.obj", 
+	"/sph_float.obj", "/semisph_float.obj", "/pyr_float.obj", "/icosa_float.obj"};
+enum obj_idx {sentry, laser, floormod, wall, strike, cube, furnace, logs, floortile, sph, semsph, pyr, icosa};
 enum sentry_shapes {sen_bot, sen_top, sen_mid};
 
 class Application : public EventCallbacks
@@ -127,6 +128,7 @@ public:
 		HAND_THROWING
 	};
 	int hand_state = HAND_READY;
+	float handshift = 0;
 	float throw_start = 0;
 	float throw_duration = .5;
 	bool has_activated_card = false;
@@ -139,21 +141,11 @@ public:
 	float refreshtime = 5;
 	bool noclip = false;
 
-	// Sentry shooting data
-	float lastshot = 0;
-	float shootdelay = 10;
-
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
 
 	// Data necessary to give our triangle to OpenGL
 	GLuint VertexBufferID;
-
-	//animation data
-	float sTheta = 0;
-	float eTheta = 0;
-	float hTheta = 0;
-	float gTheta = 0;
 
 	//global reference to texture FBO
 	GLuint frameBuf[1];
@@ -221,11 +213,23 @@ public:
 	{
 		double posX, posY;
 
-		if (action == GLFW_PRESS)
-		{
-			 glfwGetCursorPos(window, &posX, &posY);
-			 cout << "Pos X " << posX <<  " Pos Y " << posY << endl;
-			 cout << "World pos: x: " << pos.x <<" y: " << pos.y << " z: " << pos.z << endl;
+		// Throw cards
+		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && hand.size() > 0 && throw_start + throw_duration < glfwGetTime() && energy > 0) {
+			// Throwing bookkeeping
+			throw_start = glfwGetTime();
+			hand_state = HAND_THROWING;
+			has_activated_card = false;
+			energy -= 1;
+		}
+		// Draw a new hand
+		if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS && refreshtime < glfwGetTime()) {
+			refreshtime = glfwGetTime() + 5;
+			energy = 3;
+			while(hand.size() > 0) {
+				mycard = hand[0];
+				hand.erase(hand.begin() );
+				discard.push_back(mycard);
+			}
 		}
 	}
 
@@ -288,7 +292,7 @@ public:
 		glBindTexture(GL_TEXTURE_2D, inTex);
 		glBindVertexArray(quad_VertexArrayID);
 		
-		// example applying of 'drawing' the FBO texture
+		// applying of 'drawing' the FBO texture
 		blur_prog->bind();
 		glUniform1i(blur_prog->getUniform("texBuf"), 0);
 		glEnableVertexAttribArray(0);
@@ -376,10 +380,10 @@ public:
 		case 0: //Strike
 		texture0->bind(card_prog->getUniform("Texture0"));
 		break;
-		case 1: //Strike
+		case 1: //Pommel
 		texture1->bind(card_prog->getUniform("Texture0"));
 		break;
-		case 2: //Strike
+		case 2: //Defend
 		texture2->bind(card_prog->getUniform("Texture0"));
 		break;
 		}
@@ -387,22 +391,22 @@ public:
 
 	void SetSlashTex(int i) {
 		switch (i) {
-		case 1: //Strike
+		case 1:
 		slash1->bind(slash_prog->getUniform("Texture0"));
 		break;
-		case 2: //Strike
+		case 2:
 		slash2->bind(slash_prog->getUniform("Texture0"));
 		break;
-		case 3: //Strike
+		case 3:
 		slash3->bind(slash_prog->getUniform("Texture0"));
 		break;
-		case 4: //Strike
+		case 4:
 		slash4->bind(slash_prog->getUniform("Texture0"));
 		break;
-		case 5: //Strike
+		case 5:
 		slash5->bind(slash_prog->getUniform("Texture0"));
 		break;
-		case 6: //Strike
+		case 6:
 		slash6->bind(slash_prog->getUniform("Texture0"));
 		break;
 		}
@@ -421,10 +425,12 @@ public:
 		// Enable z-buffer test.
 		glEnable(GL_DEPTH_TEST);
 
+		string dir = resourceDirectory + "/shaders";
+
 		// Initialize the texture GLSL program.
 		card_prog = make_shared<Program>();
 		card_prog->setVerbose(true);
-		card_prog->setShaderNames(resourceDirectory + "/card_tex_vert.glsl", resourceDirectory + "/card_tex_frag.glsl");
+		card_prog->setShaderNames(dir + "/card_tex_vert.glsl", dir + "/card_tex_frag.glsl");
 		card_prog->init();
 		card_prog->addUniform("P");
 		card_prog->addUniform("V");
@@ -433,10 +439,6 @@ public:
 		card_prog->addAttribute("vertPos");
 		card_prog->addAttribute("vertNor");
 		card_prog->addAttribute("vertTex");
-		card_prog->addUniform("MatAmb");
-		card_prog->addUniform("MatDif");
-		card_prog->addUniform("MatSpec");
-		card_prog->addUniform("shine");
 		card_prog->addUniform("cameraLoc");
 		card_prog->addUniform("lightIntensity");
 		card_prog->addUniform("lightDropoff");
@@ -445,7 +447,7 @@ public:
 		// Initialize the texture GLSL program.
 		floor_prog = make_shared<Program>();
 		floor_prog->setVerbose(true);
-		floor_prog->setShaderNames(resourceDirectory + "/floor_tex_vert.glsl", resourceDirectory + "/floor_tex_frag.glsl");
+		floor_prog->setShaderNames(dir + "/floor_tex_vert.glsl", dir + "/floor_tex_frag.glsl");
 		floor_prog->init();
 		floor_prog->addUniform("P");
 		floor_prog->addUniform("V");
@@ -454,10 +456,6 @@ public:
 		floor_prog->addAttribute("vertPos");
 		floor_prog->addAttribute("vertNor");
 		floor_prog->addAttribute("vertTex");
-		floor_prog->addUniform("MatAmb");
-		floor_prog->addUniform("MatDif");
-		floor_prog->addUniform("MatSpec");
-		floor_prog->addUniform("shine");
 		floor_prog->addUniform("cameraLoc");
 		floor_prog->addUniform("lightIntensity");
 		floor_prog->addUniform("lightDropoff");
@@ -466,27 +464,18 @@ public:
 		// Initialize the GLSL program.
 		cube_prog = make_shared<Program>();
 		cube_prog->setVerbose(true);
-		cube_prog->setShaderNames(resourceDirectory + "/cube_vert.glsl", resourceDirectory + "/cube_frag.glsl");
+		cube_prog->setShaderNames(dir + "/cube_vert.glsl", dir + "/cube_frag.glsl");
 		cube_prog->init();
 		cube_prog->addUniform("P");
 		cube_prog->addUniform("V");
 		cube_prog->addUniform("M");
-		cube_prog->addUniform("lightPos");
 		cube_prog->addAttribute("vertPos");
 		cube_prog->addAttribute("vertNor");
-		cube_prog->addAttribute("vertTex");
-		cube_prog->addUniform("MatAmb");
-		cube_prog->addUniform("MatDif");
-		cube_prog->addUniform("MatSpec");
-		cube_prog->addUniform("shine");
-		cube_prog->addUniform("cameraLoc");
-		cube_prog->addUniform("lightIntensity");
-		cube_prog->addUniform("lightDropoff");
 
 		// Initialize the GLSL program.
 		prog = make_shared<Program>();
 		prog->setVerbose(true);
-		prog->setShaderNames(resourceDirectory + "/simple_vert.glsl", resourceDirectory + "/simple_frag.glsl");
+		prog->setShaderNames(dir + "/simple_vert.glsl", dir + "/simple_frag.glsl");
 		prog->init();
 		prog->addUniform("P");
 		prog->addUniform("V");
@@ -506,7 +495,7 @@ public:
 		// Initialize the GLSL program.
 		text_prog = make_shared<Program>();
 		text_prog->setVerbose(true);
-		text_prog->setShaderNames(resourceDirectory + "/text_vert.glsl", resourceDirectory + "/text_frag.glsl");
+		text_prog->setShaderNames(dir + "/text_vert.glsl", dir + "/text_frag.glsl");
 		text_prog->init();
 		text_prog->addUniform("projection");
 		text_prog->addUniform("text");
@@ -516,7 +505,7 @@ public:
 		// Initialize the texture GLSL program.
 		slash_prog = make_shared<Program>();
 		slash_prog->setVerbose(true);
-		slash_prog->setShaderNames(resourceDirectory + "/slash_tex_vert.glsl", resourceDirectory + "/slash_tex_frag.glsl");
+		slash_prog->setShaderNames(dir + "/slash_tex_vert.glsl", dir + "/slash_tex_frag.glsl");
 		slash_prog->init();
 		slash_prog->addUniform("P");
 		slash_prog->addUniform("V");
@@ -525,10 +514,6 @@ public:
 		slash_prog->addAttribute("vertPos");
 		slash_prog->addAttribute("vertNor");
 		slash_prog->addAttribute("vertTex");
-		slash_prog->addUniform("MatAmb");
-		slash_prog->addUniform("MatDif");
-		slash_prog->addUniform("MatSpec");
-		slash_prog->addUniform("shine");
 		slash_prog->addUniform("cameraLoc");
 		slash_prog->addUniform("lightIntensity");
 		slash_prog->addUniform("lightDropoff");
@@ -536,7 +521,7 @@ public:
 
 		blur_prog = make_shared<Program>();
 		blur_prog->setVerbose(true);
-		blur_prog->setShaderNames(resourceDirectory + "/blur_vert.glsl", resourceDirectory + "/blur_frag.glsl");
+		blur_prog->setShaderNames(dir + "/blur_vert.glsl", dir + "/blur_frag.glsl");
 		blur_prog->init();
 		blur_prog->addUniform("texBuf");
 		blur_prog->addAttribute("vertPos");
@@ -568,7 +553,7 @@ public:
  		string errStr;
 		//load in the mesh and make the shape(s)
 		for(const string &path : obj_files) {
-			bool rc = tinyobj::LoadObj(TOshapes, objMaterials, errStr, (resourceDirectory + path).c_str());
+			bool rc = tinyobj::LoadObj(TOshapes, objMaterials, errStr, (resourceDirectory + "/objs" + path).c_str());
 			if (!rc) {
 				cerr << errStr << endl;
 			} else {
@@ -594,52 +579,52 @@ public:
 	// Code to load in the three textures
 	void initTex(const std::string& resourceDirectory){
 		texture0 = make_shared<Texture>();
-		texture0->setFilename(resourceDirectory + "/Strike_FB.jpg");
+		texture0->setFilename(resourceDirectory + "/textures/Strike_FB.jpg");
 		texture0->init();
 		texture0->setUnit(2);
 		texture0->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		texture1 = make_shared<Texture>();
-		texture1->setFilename(resourceDirectory + "/Pommel_FB.jpg");
+		texture1->setFilename(resourceDirectory + "/textures/Pommel_FB.jpg");
 		texture1->init();
 		texture1->setUnit(2);
 		texture1->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		texture2 = make_shared<Texture>();
-		texture2->setFilename(resourceDirectory + "/Defend_FB.jpg");
+		texture2->setFilename(resourceDirectory + "/textures/Defend_FB.jpg");
 		texture2->init();
 		texture2->setUnit(2);
 		texture2->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		texture3 = make_shared<Texture>();
-		texture3->setFilename(resourceDirectory + "/floortex.jpg");
+		texture3->setFilename(resourceDirectory + "/textures/floortex.jpg");
 		texture3->init();
 		texture3->setUnit(2);
 		texture3->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		slash1 = make_shared<Texture>();
-		slash1->setFilename(resourceDirectory + "/slash/slash1.jpg");
+		slash1->setFilename(resourceDirectory + "/textures/slash/slash1.jpg");
 		slash1->init();
 		slash1->setUnit(2);
 		slash1->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		slash2 = make_shared<Texture>();
-		slash2->setFilename(resourceDirectory + "/slash/slash2.jpg");
+		slash2->setFilename(resourceDirectory + "/textures/slash/slash2.jpg");
 		slash2->init();
 		slash2->setUnit(2);
 		slash2->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		slash3 = make_shared<Texture>();
-		slash3->setFilename(resourceDirectory + "/slash/slash3.jpg");
+		slash3->setFilename(resourceDirectory + "/textures/slash/slash3.jpg");
 		slash3->init();
 		slash3->setUnit(2);
 		slash3->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		slash4 = make_shared<Texture>();
-		slash4->setFilename(resourceDirectory + "/slash/slash4.jpg");
+		slash4->setFilename(resourceDirectory + "/textures/slash/slash4.jpg");
 		slash4->init();
 		slash4->setUnit(2);
 		slash4->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		slash5 = make_shared<Texture>();
-		slash5->setFilename(resourceDirectory + "/slash/slash5.jpg");
+		slash5->setFilename(resourceDirectory + "/textures/slash/slash5.jpg");
 		slash5->init();
 		slash5->setUnit(2);
 		slash5->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 		slash6 = make_shared<Texture>();
-		slash6->setFilename(resourceDirectory + "/slash/slash6.jpg");
+		slash6->setFilename(resourceDirectory + "/textures/slash/slash6.jpg");
 		slash6->init();
 		slash6->setUnit(2);
 		slash6->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
@@ -711,291 +696,28 @@ public:
 		glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M->topMatrix()));
     }
 
-	void render() {
-		// Get current frame buffer size.
-		int width, height;
-		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
-		glViewport(0, 0, width, height);
+	void render_skybox(shared_ptr<MatrixStack> Model, shared_ptr<MatrixStack> View, shared_ptr<MatrixStack> Projection ) {
+		cube_prog->bind();
+		glUniformMatrix4fv(cube_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		//set the depth function to always draw the box!
+		glDepthFunc(GL_LEQUAL);
+		//set up view matrix to include your view transforms 
+		//(your code likely will be different depending
+		glUniformMatrix4fv(cube_prog->getUniform("V"), 1, GL_FALSE,value_ptr(View->topMatrix()) );
+		//set and send model transforms - likely want a bigger cube
+		Model->pushMatrix();
+			Model->scale(100);
+			glUniformMatrix4fv(cube_prog->getUniform("M"), 1, GL_FALSE,value_ptr(Model->topMatrix()));
+		Model->popMatrix();
+		//bind the cube map texture
+		glBindTexture(GL_TEXTURE_CUBE_MAP,0);
+		//draw the actual cube
+		meshes[cube]->shapes[0]->draw(cube_prog);
+		glDepthFunc(GL_LESS);
+		cube_prog->unbind(); 
+	}
 
-		//set up to render to buffer
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[0]);
-		// Clear framebuffer.
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		//Use the matrix stack for Lab 6
-		float aspect = width/(float)height;
-
-		// Create the matrix stacks - please leave these alone for now
-		auto Projection = make_shared<MatrixStack>();
-		auto View = make_shared<MatrixStack>();
-		auto Model = make_shared<MatrixStack>();
-
-		// Light updating
-		furnacecol = vec3(1, .75 + .05*sin(glfwGetTime() * .5), .6 + .05*sin(glfwGetTime() * .5));
-
-		// ***** Camera + Player Positioning **************************************************
-
-		// Pitch and yaw of camera
-		glfwGetCursorPos(windowManager->getHandle(), &mouse_x, &mouse_y);
-		double delta_x = mouse_x - win_w/2;
-		double delta_y = win_h/2 - mouse_y;
-		glfwSetCursorPos(windowManager->getHandle(), win_w/2, win_h/2);
-
-		phi += delta_y * .01;
-		theta += delta_x * .01;
-		if (phi > 3.14/3) {
-			phi = 3.14/3;
-		}
-		if (phi < -3.14/3) {
-			phi = -3.14/3;
-		}
-		if (theta > 6.28) {
-			theta -= 6.28;
-		}
-		if (theta < 0) {
-			theta += 6.28;
-		}
-
-		lookat = vec3(cos(phi)*cos(theta),sin(phi),cos(phi)*cos(3.14159/2-theta)) + pos;
-		viewdir = lookat - pos;
-		
-		// Check if "sprinting"
-		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-			speed = std::min(speed + .005f, .05f);
-			fov = std::min(fov + .05f, 45.2f);
-		}
-		else {
-			speed = std::max(speed - .005f, .03f);
-			fov = std::max(fov - .05f, 45.0f);
-		}
-
-		// Dolly camera
-		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_W) == GLFW_PRESS) {
-			vec3 walkdir = normalize(vec3(viewdir.x,0,viewdir.z)) * speed;
-			if (noclip) {
-				walkdir = normalize(viewdir) * speed;
-			}
-			pos += walkdir;
-			lookat += walkdir;
-		}
-		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_S) == GLFW_PRESS) {
-			vec3 walkdir = normalize(vec3(viewdir.x,0,viewdir.z)) * speed;
-			if (noclip) {
-				walkdir = normalize(viewdir) * speed;
-			}
-			pos -= walkdir;
-			lookat -= walkdir;
-		}
-
-		// Strafe camera
-		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_A) == GLFW_PRESS) {
-			pos -= cross(viewdir, upvec) * speed;
-			lookat -= cross(viewdir, upvec) * speed;
-		}
-		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_D) == GLFW_PRESS) {
-			pos += cross(viewdir, upvec) * speed;
-			lookat += cross(viewdir, upvec) * speed;
-		}
-
-		// View is global translation along negative z for now
-		View->pushMatrix();
-			View->lookAt(pos, lookat, upvec);
-
-		// Apply perspective projection.
-		Projection->pushMatrix();
-			Projection->perspective(fov, aspect, 0.01f, 100.0f);
-
-		// ***** Card Logic *******************************************************
-
-		// Put more cards in hand if empty
-		if (hand.size() == 0) {
-			for (int i=0; i<5; i++) {
-				if (drawpile.empty()) {
-					drawpile = discard;
-					discard = {};
-					random_shuffle(drawpile.begin(), drawpile.end());
-				}
-				mycard2 = drawpile[0];
-				drawpile.erase(drawpile.begin());
-				hand.push_back(mycard2);
-			}
-			selected_card = 0;
-		}
-
-		// Move hand down if throwing
-		float handshift = 0;
-		if (hand_state == HAND_THROWING) {
-			handshift = 1.9*pow((glfwGetTime() - throw_start - throw_duration/2), 2) - .13;
-		}
-		if (glfwGetTime() > throw_start + throw_duration) {
-			hand_state = HAND_READY;
-		}
-		// Actually throw the card halfway through the animation
-		else if (glfwGetTime() > throw_start + throw_duration/2 && !has_activated_card) {
-			
-			has_activated_card = true;
-			mycard = hand[selected_card];
-
-			// Put the card in our discard pile
-			hand.erase(hand.begin() + selected_card);
-			discard.push_back(mycard);
-			selected_card = std::max(selected_card-1, 0);
-
-			// Throw the card if it can be thrown
-			if (mycard->throwable) {
-				thrown_cards.push_back(mycard->throwCard(pos, viewdir, theta));
-			}
-			// Draw cards if needed
-			for (int i=0; i<mycard->draw; i++) {
-				if (drawpile.empty()) {
-					drawpile = discard;
-					discard = {};
-					random_shuffle(drawpile.begin(), drawpile.end());
-				}
-				mycard = drawpile[0];
-				drawpile.erase(drawpile.begin());
-				hand.push_back(mycard);
-			}
-			// Gain block if needed
-			block += mycard->block;
-		}
-
-		//Check thrown cards for collision with floor / ceiling
-		int i = 0;
-		while(i < thrown_cards.size()) {
-			if (thrown_cards[i]->pos.y < 0.01 || thrown_cards[i]->pos.y > 4.1) {
-				mycard2 = thrown_cards[i];
-				thrown_cards.erase(thrown_cards.begin() + i);
-				mycard2->makeStuck();
-				stuck_cards.push_back(mycard2);
-				i--;
-			}
-			i++;
-		}
-
-		//Check thrown cards for collision with Sentries
-		for (int j=0; j<sentries.size(); j++) {
-			i = 0;
-			vec3 senxyz  =sentries[j]->hitboxpos;
-			float sentop = sentries[j]->top;
-			float senbot = sentries[j]->bottom;
-
-			while (i<thrown_cards.size()) {
-				vec3 cardpos = thrown_cards[i]->pos;
-				// Check if cards are within a hitbox made up of two cones
-				if (0 > - pow(cardpos.y - sentop, 2)/4.0f + pow(cardpos.x - senxyz.x, 2) + pow(cardpos.z - senxyz.z, 2) &&
-					0 > - pow(cardpos.y - senbot, 2)/4.0f + pow(cardpos.x - senxyz.x, 2) + pow(cardpos.z - senxyz.z, 2) &&
-					cardpos.y < sentop && cardpos.y > senbot ) {
-					sentries[j]->health -= thrown_cards[i]->damage;
-					mycard = thrown_cards[i];
-					mycard->state = CARD_SLASH;
-					slashing_cards.push_back(mycard);
-					thrown_cards.erase(thrown_cards.begin() + i);
-					i--;
-				}
-				i++;
-			}
-		}
-
-		refresh = std::max((int)ceil(refreshtime - glfwGetTime()), 0);
-
-		// ***** Sentry Logic ***************************************************************************
-
-		// Perform various operations on sentries
-		while (i<sentries.size()) {
-			// Update player position
-			if (!sentries[i]->charging) {
-				sentries[i]->playerPos = pos;
-			}
-			// Deal damage to the player if needed
-			if (sentries[i]->firing && !sentries[i]->hasDealtDamage) {
-				vec3 shootdir = sentries[i]->playerPos - sentries[i]->pos;
-				shootdir.y = 0;
-				shootdir = normalize(shootdir);
-				// Check if the player is being hit by the laser using a plane and distance to the shoot dir
-				if (dot(shootdir, sentries[i]->pos - pos) < 0 &&
-				    length(cross(pos - sentries[i]->pos, pos - sentries[i]->pos + shootdir)) < .3 ) {
-					block -= 9;
-					if (block < 0) {
-						health += block;
-						block = 0;
-					}
-					sentries[i]->hasDealtDamage = true;
-				}	
-			}
-			// Discard dead sentries
-			if (sentries[i]->state == SENTRY_DEAD) {
-				sentries.erase(sentries.begin() + i);
-				i--;
-			}
-			i++;
-		}
-
-		// ***** Card Texture Prog *****************************************************************
-
-		card_prog->bind();
-		glUniformMatrix4fv(card_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-		glUniformMatrix4fv(card_prog->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
-
-		// Set up light and camera location
-		glUniform3f(card_prog->getUniform("lightIntensity"), furnacecol.x, furnacecol.y, furnacecol.z);
-		glUniform3f(card_prog->getUniform("lightDropoff"), 1.0, 0.05, 0.0);
-		glUniform3f(card_prog->getUniform("cameraLoc"), pos.x, pos.y, pos.z);
-		glUniform3f(card_prog->getUniform("lightPos"), furnacelight.x, furnacelight.y, furnacelight.z);
-
-		// Draw cards in left hand
-		for (int i=0; i < hand.size(); i++) {
-			SetCardTex(hand[i]->card_id % 3);
-			hand[i]->drawHandCard(card_prog,meshes,i,hand.size(),phi,theta,pos,viewdir,handshift);
-		}
-
-		// Drawn thrown cards
-		for (int i=0; i< thrown_cards.size(); i++) {
-			SetCardTex(thrown_cards[i]->card_id % 3);
-			thrown_cards[i]->drawThrownCard(card_prog,meshes);
-		}
-
-		// Drawn stuck cards (stuck in floor/walls)
-		for (int i=0; i< stuck_cards.size(); i++) {
-			SetCardTex(stuck_cards[i]->card_id % 3);
-			stuck_cards[i]->drawStuckCard(card_prog,meshes);
-		}
-
-		card_prog->unbind();
-
-
-		// ***** Slash Texture Prog *****************************************************************
-
-		slash_prog->bind();
-		glUniformMatrix4fv(slash_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-		glUniformMatrix4fv(slash_prog->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
-
-		// Set up light and camera location
-		glUniform3f(slash_prog->getUniform("lightIntensity"), furnacecol.x, furnacecol.y, furnacecol.z);
-		glUniform3f(slash_prog->getUniform("lightDropoff"), 1.0, 0.05, 0.0);
-		glUniform3f(slash_prog->getUniform("cameraLoc"), pos.x, pos.y, pos.z);
-		glUniform3f(slash_prog->getUniform("lightPos"), furnacelight.x, furnacelight.y, furnacelight.z);
-
-		// Drawn cards doing the slash animation
-		i = 0;
-		while (i< slashing_cards.size()) {
-			SetSlashTex(1);
-			if (slashing_cards[i]->slashFrame < 18) {
-				SetSlashTex(ceil(slashing_cards[i]->slashFrame / 3));
-				slashing_cards[i]->drawSlashingCard(slash_prog,meshes,theta);
-				slashing_cards[i]->slashFrame += 1;
-			}
-			else {
-				slashing_cards.erase(slashing_cards.begin() + i);
-				i--;
-			}
-			i++;
-		}
-
-		slash_prog->unbind();
-
-		// ***** Floor Texture Prog *****************************************************************
-
+	void render_floor(shared_ptr<MatrixStack> Model, shared_ptr<MatrixStack> View, shared_ptr<MatrixStack> Projection) {
 		floor_prog->bind();
 		glUniformMatrix4fv(floor_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
 		glUniformMatrix4fv(floor_prog->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
@@ -1025,8 +747,104 @@ public:
 		Model->popMatrix();
 
 		floor_prog->unbind();
+	}
 
-		// ***** Untextured Prog **********************************************************************
+	void render_slashes(shared_ptr<MatrixStack> Model, shared_ptr<MatrixStack> View, shared_ptr<MatrixStack> Projection) {
+		slash_prog->bind();
+		glUniformMatrix4fv(slash_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		glUniformMatrix4fv(slash_prog->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
+
+		// Set up light and camera location
+		glUniform3f(slash_prog->getUniform("lightIntensity"), furnacecol.x, furnacecol.y, furnacecol.z);
+		glUniform3f(slash_prog->getUniform("lightDropoff"), 1.0, 0.05, 0.0);
+		glUniform3f(slash_prog->getUniform("cameraLoc"), pos.x, pos.y, pos.z);
+		glUniform3f(slash_prog->getUniform("lightPos"), furnacelight.x, furnacelight.y, furnacelight.z);
+
+		// Drawn cards doing the slash animation
+		int i = 0;
+		while (i< slashing_cards.size()) {
+			SetSlashTex(1);
+			if (slashing_cards[i]->slashFrame < 18) {
+				SetSlashTex(ceil(slashing_cards[i]->slashFrame / 3));
+				slashing_cards[i]->drawSlashingCard(slash_prog,meshes,theta);
+				slashing_cards[i]->slashFrame += 1;
+			}
+			else {
+				slashing_cards.erase(slashing_cards.begin() + i);
+				i--;
+			}
+			i++;
+		}
+
+		slash_prog->unbind();
+	}
+
+	void render_cards(shared_ptr<MatrixStack> Model, shared_ptr<MatrixStack> View, shared_ptr<MatrixStack> Projection) {
+		card_prog->bind();
+		glUniformMatrix4fv(card_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		glUniformMatrix4fv(card_prog->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
+
+		// Set up light and camera location
+		glUniform3f(card_prog->getUniform("lightIntensity"), furnacecol.x, furnacecol.y, furnacecol.z);
+		glUniform3f(card_prog->getUniform("lightDropoff"), 1.0, 0.05, 0.0);
+		glUniform3f(card_prog->getUniform("cameraLoc"), pos.x, pos.y, pos.z);
+		glUniform3f(card_prog->getUniform("lightPos"), furnacelight.x, furnacelight.y, furnacelight.z);
+
+		// Draw cards in left hand
+		for (int i=0; i < hand.size(); i++) {
+			SetCardTex(hand[i]->card_id % 3);
+			hand[i]->drawHandCard(card_prog,meshes,i,hand.size(),phi,theta,pos,viewdir,handshift);
+		}
+
+		// Drawn thrown cards
+		for (int i=0; i< thrown_cards.size(); i++) {
+			SetCardTex(thrown_cards[i]->card_id % 3);
+			thrown_cards[i]->drawThrownCard(card_prog,meshes);
+		}
+
+		// Drawn stuck cards (stuck in floor/walls)
+		for (int i=0; i< stuck_cards.size(); i++) {
+			SetCardTex(stuck_cards[i]->card_id % 3);
+			stuck_cards[i]->drawStuckCard(card_prog,meshes);
+		}
+
+		card_prog->unbind();
+	}
+
+	void render_sentries(shared_ptr<MatrixStack> Model, shared_ptr<MatrixStack> View, shared_ptr<MatrixStack> Projection) {
+		// Perform various operations on sentries
+		int i = 0;
+		while (i<sentries.size()) {
+			// Update player position
+			if (!sentries[i]->charging) {
+				sentries[i]->playerPos = pos;
+			}
+			// Deal damage to the player if needed
+			if (sentries[i]->firing && !sentries[i]->hasDealtDamage) {
+				vec3 shootdir = sentries[i]->playerPos - sentries[i]->pos;
+				shootdir.y = 0;
+				shootdir = normalize(shootdir);
+				// Check if the player is being hit by the laser using a plane and distance to the shoot dir
+				if (dot(shootdir, sentries[i]->pos - pos) < 0 &&
+				    length(cross(pos - sentries[i]->pos, pos - sentries[i]->pos + shootdir)) < .3 ) {
+					block -= 9;
+					if (block < 0) {
+						health += block;
+						block = 0;
+					}
+					sentries[i]->hasDealtDamage = true;
+				}	
+			}
+			// Discard dead sentries
+			if (sentries[i]->state == SENTRY_DEAD) {
+				sentries.erase(sentries.begin() + i);
+				i--;
+			}
+			i++;
+		}
+	}
+
+	void render_decor(shared_ptr<MatrixStack> Model, shared_ptr<MatrixStack> View, shared_ptr<MatrixStack> Projection) {
 
 		prog->bind();
 		glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
@@ -1206,27 +1024,215 @@ public:
 		Model->popMatrix();
 
 		prog->unbind();
+	}
 
-		// ***** Skybox **********************************************************************
+	void updateHandState() {
 
-		cube_prog->bind();
-		glUniformMatrix4fv(cube_prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-		//set the depth function to always draw the box!
-		glDepthFunc(GL_LEQUAL);
-		//set up view matrix to include your view transforms 
-		//(your code likely will be different depending
-		glUniformMatrix4fv(cube_prog->getUniform("V"), 1, GL_FALSE,value_ptr(View->topMatrix()) );
-		//set and send model transforms - likely want a bigger cube
-		Model->pushMatrix();
-			Model->scale(100);
-			glUniformMatrix4fv(cube_prog->getUniform("M"), 1, GL_FALSE,value_ptr(Model->topMatrix()));
-		Model->popMatrix();
-		//bind the cube map texture
-		glBindTexture(GL_TEXTURE_CUBE_MAP,0);
-		//draw the actual cube
-		meshes[cube]->shapes[0]->draw(cube_prog);
-		glDepthFunc(GL_LESS);
-		cube_prog->unbind(); 
+		refresh = std::max((int)ceil(refreshtime - glfwGetTime()), 0);
+
+		// Put more cards in hand if empty
+		if (hand.size() == 0) {
+			for (int i=0; i<5; i++) {
+				if (drawpile.empty()) {
+					drawpile = discard;
+					discard = {};
+					random_shuffle(drawpile.begin(), drawpile.end());
+				}
+				mycard2 = drawpile[0];
+				drawpile.erase(drawpile.begin());
+				hand.push_back(mycard2);
+			}
+			selected_card = 0;
+		}
+
+		// Move hand down if throwing
+		
+		if (hand_state == HAND_THROWING) {
+			handshift = 1.9*pow((glfwGetTime() - throw_start - throw_duration/2), 2) - .13;
+		}
+		else {
+			handshift = 0;
+		}
+		if (glfwGetTime() > throw_start + throw_duration) {
+			hand_state = HAND_READY;
+		}
+		// Actually throw the card halfway through the animation
+		else if (glfwGetTime() > throw_start + throw_duration/2 && !has_activated_card) {
+			
+			has_activated_card = true;
+			mycard = hand[selected_card];
+
+			// Put the card in our discard pile
+			hand.erase(hand.begin() + selected_card);
+			discard.push_back(mycard);
+			selected_card = std::max(selected_card-1, 0);
+
+			// Throw the card if it can be thrown
+			if (mycard->throwable) {
+				thrown_cards.push_back(mycard->throwCard(pos, viewdir, theta));
+			}
+			// Draw cards if needed
+			for (int i=0; i<mycard->draw; i++) {
+				if (drawpile.empty()) {
+					drawpile = discard;
+					discard = {};
+					random_shuffle(drawpile.begin(), drawpile.end());
+				}
+				mycard = drawpile[0];
+				drawpile.erase(drawpile.begin());
+				hand.push_back(mycard);
+			}
+			// Gain block if needed
+			block += mycard->block;
+		}
+
+		//Check thrown cards for collision with floor / ceiling
+		int i = 0;
+		while(i < thrown_cards.size()) {
+			if (thrown_cards[i]->pos.y < 0.01 || thrown_cards[i]->pos.y > 4.1) {
+				mycard2 = thrown_cards[i];
+				thrown_cards.erase(thrown_cards.begin() + i);
+				mycard2->makeStuck();
+				stuck_cards.push_back(mycard2);
+				i--;
+			}
+			i++;
+		}
+
+		//Check thrown cards for collision with Sentries
+		for (int j=0; j<sentries.size(); j++) {
+			i = 0;
+			vec3 senxyz  =sentries[j]->hitboxpos;
+			float sentop = sentries[j]->top;
+			float senbot = sentries[j]->bottom;
+
+			while (i<thrown_cards.size()) {
+				vec3 cardpos = thrown_cards[i]->pos;
+				// Check if cards are within a hitbox made up of two cones
+				if (0 > - pow(cardpos.y - sentop, 2)/4.0f + pow(cardpos.x - senxyz.x, 2) + pow(cardpos.z - senxyz.z, 2) &&
+					0 > - pow(cardpos.y - senbot, 2)/4.0f + pow(cardpos.x - senxyz.x, 2) + pow(cardpos.z - senxyz.z, 2) &&
+					cardpos.y < sentop && cardpos.y > senbot ) {
+					sentries[j]->health -= thrown_cards[i]->damage;
+					mycard = thrown_cards[i];
+					mycard->state = CARD_SLASH;
+					slashing_cards.push_back(mycard);
+					thrown_cards.erase(thrown_cards.begin() + i);
+					i--;
+				}
+				i++;
+			}
+		}
+	}
+
+	void updatePlayerState() {
+
+		// Pitch and yaw of camera
+		glfwGetCursorPos(windowManager->getHandle(), &mouse_x, &mouse_y);
+		double delta_x = mouse_x - win_w/2;
+		double delta_y = win_h/2 - mouse_y;
+		glfwSetCursorPos(windowManager->getHandle(), win_w/2, win_h/2);
+
+		phi += delta_y * .01;
+		theta += delta_x * .01;
+		if (phi > 3.14/3) {
+			phi = 3.14/3;
+		}
+		if (phi < -3.14/3) {
+			phi = -3.14/3;
+		}
+		if (theta > 6.28) {
+			theta -= 6.28;
+		}
+		if (theta < 0) {
+			theta += 6.28;
+		}
+
+		lookat = vec3(cos(phi)*cos(theta),sin(phi),cos(phi)*cos(3.14159/2-theta)) + pos;
+		viewdir = lookat - pos;
+		
+		// Check if "sprinting"
+		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+			speed = std::min(speed + .005f, .05f);
+			fov = std::min(fov + .05f, 45.2f);
+		}
+		else {
+			speed = std::max(speed - .005f, .03f);
+			fov = std::max(fov - .05f, 45.0f);
+		}
+
+		// Dolly camera
+		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_W) == GLFW_PRESS) {
+			vec3 walkdir = normalize(vec3(viewdir.x,0,viewdir.z)) * speed;
+			if (noclip) {
+				walkdir = normalize(viewdir) * speed;
+			}
+			pos += walkdir;
+			lookat += walkdir;
+		}
+		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_S) == GLFW_PRESS) {
+			vec3 walkdir = normalize(vec3(viewdir.x,0,viewdir.z)) * speed;
+			if (noclip) {
+				walkdir = normalize(viewdir) * speed;
+			}
+			pos -= walkdir;
+			lookat -= walkdir;
+		}
+
+		// Strafe camera
+		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_A) == GLFW_PRESS) {
+			pos -= cross(viewdir, upvec) * speed;
+			lookat -= cross(viewdir, upvec) * speed;
+		}
+		if(glfwGetKey(windowManager->getHandle(), GLFW_KEY_D) == GLFW_PRESS) {
+			pos += cross(viewdir, upvec) * speed;
+			lookat += cross(viewdir, upvec) * speed;
+		}
+	}
+
+
+	void render() {
+		// Get current frame buffer size.
+		int width, height;
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+		glViewport(0, 0, width, height);
+
+		//set up to render to buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[0]);
+		// Clear framebuffer.
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		//Use the matrix stack for Lab 6
+		float aspect = width/(float)height;
+
+		// Create the matrix stacks - please leave these alone for now
+		auto Projection = make_shared<MatrixStack>();
+		auto View = make_shared<MatrixStack>();
+		auto Model = make_shared<MatrixStack>();
+
+		// Update furnace lighting
+		furnacecol = vec3(1, .75 + .05*sin(glfwGetTime() * .5), .6 + .05*sin(glfwGetTime() * .5));
+
+		// update player position and looking direction
+		updatePlayerState();
+
+		// View is global translation along negative z for now
+		View->pushMatrix();
+			View->lookAt(pos, lookat, upvec);
+
+		// Apply perspective projection.
+		Projection->pushMatrix();
+			Projection->perspective(fov, aspect, 0.01f, 100.0f);
+
+		// Update the hand's state
+		updateHandState();
+
+		// Render all different objects
+		render_sentries(Model, View, Projection);
+		render_cards(Model, View, Projection);
+		render_slashes(Model, View, Projection);
+		render_floor(Model, View, Projection);
+		render_decor(Model, View, Projection);
+		render_skybox(Model, View, Projection);
 
 		// Pop matrix stacks.
 		Projection->popMatrix();
@@ -1243,7 +1249,6 @@ public:
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		Blur(texBuf[0]);
-
 
 	}
 };
@@ -1281,7 +1286,7 @@ int main(int argc, char *argv[])
 	application->initTex(resourceDir);
 
 	// Set up skybox
-	application->createSky(resourceDir + "/sky/", application->faces);
+	application->createSky(resourceDir + "/textures/sky/", application->faces);
 
 	// Add bad guys in
 	application->initSentries();
@@ -1290,7 +1295,7 @@ int main(int argc, char *argv[])
 	application->initCards();
 
 	// Load text renderer
-	application->textRenderer = make_shared<TextRenderer>(resourceDir + "/Kreon-Regular.ttf");
+	application->textRenderer = make_shared<TextRenderer>(resourceDir + "/fonts/Kreon-Regular.ttf");
 
 	// Loop until the user closes the window.
 	while (! glfwWindowShouldClose(windowManager->getHandle()))

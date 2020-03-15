@@ -87,8 +87,8 @@ void Sentry::drawSentry(std::shared_ptr<Program>  prog, std::vector<std::shared_
     float curTime = glfwGetTime();
     
     // Enum stuff
-    int sentry = 3;
-    int laser = 4;
+    int sentry = 0;
+    int laser = 1;
     int sen_bot = 0;
     int sen_top = 1;
     int sen_mid = 2;

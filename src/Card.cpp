@@ -56,7 +56,7 @@ void Card::drawHandCard(std::shared_ptr<Program>  prog, std::vector<std::shared_
     Model->loadIdentity();
 
     // From an enum in main
-    int strike = 8;
+    int strike = 4;
 
     Model->pushMatrix();
         // Move down if throwing
@@ -96,7 +96,7 @@ void Card::drawThrownCard(std::shared_ptr<Program>  prog, std::vector<std::share
     curtime = glfwGetTime();
 
     // From an enum in main
-    int strike = 8;
+    int strike = 4;
 
     Model->pushMatrix();
         Model->translate(pos);
@@ -142,7 +142,7 @@ void Card::drawStuckCard(std::shared_ptr<Program>  prog, std::vector<std::shared
     Model->loadIdentity();
 
     // From an enum in main
-    int strike = 8;
+    int strike = 4;
 
     Model->pushMatrix();
         Model->translate(pos);
@@ -178,7 +178,7 @@ void Card::drawSlashingCard(std::shared_ptr<Program> prog, std::vector<std::shar
     Model->loadIdentity();
 
     // From an enum in main
-    int slash = 12;
+    int slash = 8;
 
     Model->pushMatrix();
         Model->translate(pos);

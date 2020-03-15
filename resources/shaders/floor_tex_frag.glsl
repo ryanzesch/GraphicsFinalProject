@@ -2,10 +2,6 @@
 in vec3 fragNor;
 out vec4 color;
 
-uniform vec3 MatDif;
-uniform vec3 MatAmb;
-uniform vec3 MatSpec;
-uniform float shine;
 uniform vec3 lightIntensity;
 uniform vec3 lightDropoff;
 uniform sampler2D Texture0;
