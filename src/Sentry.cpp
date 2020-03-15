@@ -33,10 +33,16 @@ void SetSentryMaterial(int i, std::shared_ptr<Program>  prog) {
     glUniform3f(prog->getUniform("MatSpec"), 0.126777, 0.137622, 0.086014);
     glUniform1f(prog->getUniform("shine"), 12.8);
     break;
-    case 6: //blue for sentry
+    case 6: //blue for sentry center
     glUniform3f(prog->getUniform("MatAmb"), 65.0/255 * .4, 154.0/255 * .4, 211.0/255 * .4);
-    glUniform3f(prog->getUniform("MatDif"), 0.2f,0.3f,0.5f);
-    glUniform3f(prog->getUniform("MatSpec"),0.02f,0.3f,0.7f);
+    glUniform3f(prog->getUniform("MatDif"), 0.08f,0.08f,0.4f);
+    glUniform3f(prog->getUniform("MatSpec"),0.02f,0.3f,0.9f);
+    glUniform1f(prog->getUniform("shine"), 200);
+    break;
+    case 7: //blue for sentry laser
+    glUniform3f(prog->getUniform("MatAmb"), 65.0/255 * .7, 154.0/255 * .7, 211.0/255 * .7);
+    glUniform3f(prog->getUniform("MatDif"), 0.02f,0.03f,0.05f);
+    glUniform3f(prog->getUniform("MatSpec"),0.002f,0.03f,0.07f);
     glUniform1f(prog->getUniform("shine"), 200);
     break;
     }
@@ -165,6 +171,7 @@ void Sentry::drawSentry(std::shared_ptr<Program>  prog, std::vector<std::shared_
             Model->rotate(timesincedeath * 3, glm::vec3(1,4,8));
             Model->translate(meshes[sentry]->shapes[sen_mid]->getCenter());	
             if(firing) {
+                SetSentryMaterial(7, prog);
                 Model->pushMatrix();
                     glm::vec3 shootdir = playerPos - pos;
                     shootdir.y = 0;
@@ -175,6 +182,7 @@ void Sentry::drawSentry(std::shared_ptr<Program>  prog, std::vector<std::shared_
                     setSentryModel(prog, Model);
                     meshes[laser]->shapes[0]->draw(prog);
                 Model->popMatrix();
+                SetSentryMaterial(6, prog);
             }
             Model->translate(-meshes[sentry]->shapes[sen_mid]->getCenter());	
             setSentryModel(prog, Model);

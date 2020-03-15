@@ -31,6 +31,8 @@
 using namespace std;
 using namespace glm;
 
+void initQuad();
+
 // Bookkeeping of out obj's
 const char *obj_files[] = {"/sphere.obj", "/dummy.obj", "/bunnyNoNorm.obj", "/sentry.obj", "/laser.obj", "/floor.obj", "/pillar.obj", "/dog.obj", 
 	"/card.obj", "/cube.obj", "/myfurnace.obj", "/furnacelogs.obj", "/tile.obj", "/sph_float.obj", "/semisph_float.obj", "/pyr_float.obj", "/icosa_float.obj"};
@@ -54,6 +56,11 @@ public:
 	std::shared_ptr<Program> floor_prog;
 	std::shared_ptr<Program> text_prog;
 	std::shared_ptr<Program> slash_prog;
+	std::shared_ptr<Program> blur_prog;
+
+	//geometry for texture render
+	GLuint quad_VertexArrayID;
+	GLuint quad_vertexbuffer;
 
 	// Shape to be used (from  file) - modify to support multiple
 	shared_ptr<Shape> mesh;
@@ -148,6 +155,11 @@ public:
 	float hTheta = 0;
 	float gTheta = 0;
 
+	//global reference to texture FBO
+	GLuint frameBuf[1];
+	GLuint texBuf[1];
+	GLuint depthBuf;
+
 	void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	{
 		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
@@ -222,6 +234,70 @@ public:
 		glViewport(0, 0, width, height);
 		win_w = width;
 		win_h = height;
+	}
+
+	/**** geometry set up for a quad *****/
+    void initQuad() {
+		//now set up a simple quad for rendering FBO
+		glGenVertexArrays(1, &quad_VertexArrayID);
+		glBindVertexArray(quad_VertexArrayID);
+
+		static const GLfloat g_quad_vertex_buffer_data[] = {
+		-1.0f, -1.0f, 0.0f,
+		1.0f, -1.0f, 0.0f,
+		-1.0f,  1.0f, 0.0f,
+		-1.0f,  1.0f, 0.0f,
+		1.0f, -1.0f, 0.0f,
+		1.0f,  1.0f, 0.0f,
+		};
+
+		glGenBuffers(1, &quad_vertexbuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+	}
+
+	/*
+	Helper function to create the framebuffer object and associated texture to write to
+	*/
+	void createFBO(GLuint& fb, GLuint& tex) {
+		//initialize FBO (global memory)
+		int width, height;
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+
+		//set up framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, fb);
+		//set up texture
+		glBindTexture(GL_TEXTURE_2D, tex);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+
+		if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			cout << "Error setting up frame buffer - exiting" << endl;
+			exit(0);
+		}
+	}
+
+	void Blur(GLuint inTex) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, inTex);
+		glBindVertexArray(quad_VertexArrayID);
+		
+		// example applying of 'drawing' the FBO texture
+		blur_prog->bind();
+		glUniform1i(blur_prog->getUniform("texBuf"), 0);
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *) 0);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glDisableVertexAttribArray(0);
+		blur_prog->unbind();
+		
 	}
 
 	void SetMaterial(int i) {
@@ -336,6 +412,9 @@ public:
 	void init(const std::string& resourceDirectory)
 	{
 		GLSL::checkVersion();
+
+		int width, height;
+   		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 
 		// Set background color.
 		glClearColor(.12f, .34f, .56f, 1.0f);
@@ -454,6 +533,28 @@ public:
 		slash_prog->addUniform("lightIntensity");
 		slash_prog->addUniform("lightDropoff");
 		slash_prog->addUniform("Texture0");
+
+		blur_prog = make_shared<Program>();
+		blur_prog->setVerbose(true);
+		blur_prog->setShaderNames(resourceDirectory + "/blur_vert.glsl", resourceDirectory + "/blur_frag.glsl");
+		blur_prog->init();
+		blur_prog->addUniform("texBuf");
+		blur_prog->addAttribute("vertPos");
+
+		//create two frame buffer objects to toggle between
+		glGenFramebuffers(1, frameBuf);
+		glGenTextures(1, texBuf);
+		glGenRenderbuffers(1, &depthBuf);
+		createFBO(frameBuf[0], texBuf[0]);
+
+		//set up depth necessary since we are rendering a mesh that needs depth test
+		glBindRenderbuffer(GL_RENDERBUFFER, depthBuf);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuf);
+		
+		//more FBO set up
+		GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+		glDrawBuffers(1, DrawBuffers);
 	}
 
 	void initGeom(const std::string& resourceDirectory)
@@ -486,6 +587,8 @@ public:
 				meshes.push_back(multishape);
 			}
 		}
+
+		initQuad();
 	}
 	
 	// Code to load in the three textures
@@ -614,6 +717,8 @@ public:
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		glViewport(0, 0, width, height);
 
+		//set up to render to buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[0]);
 		// Clear framebuffer.
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -1127,10 +1232,19 @@ public:
 		Projection->popMatrix();
 		View->popMatrix();
 
+		// Render text
 		textRenderer->RenderText(text_prog, "Block: " + to_string(block), 50.0f, 680.0f,0.5f,vec3(.1,.1,1),win_w,win_h);
 		textRenderer->RenderText(text_prog, "Health: " + to_string(health) + "/" + to_string(75), 50.0f, 650.0f,0.5f,vec3(1,.1,.1),win_w,win_h);
 		textRenderer->RenderText(text_prog, "Energy: " + to_string(energy) + "/" + to_string(3), 50.0f, 620.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
 		textRenderer->RenderText(text_prog, "Refresh: " + to_string(refresh) + "s", 50.0f, 590.0f,0.5f,vec3(.1,1,.1),win_w,win_h);
+
+		// Apply blur
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		Blur(texBuf[0]);
+
+
 	}
 };
 
