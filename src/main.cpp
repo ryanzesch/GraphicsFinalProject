@@ -1,12 +1,5 @@
-/*
- * Program 3 base code - includes modifications to shape and initGeom in preparation to load
- * multi shape objects 
- * CPE 471 Cal Poly Z. Wood + S. Sueda + I. Dunn
- */
-
 #include <iostream>
 #include <glad/glad.h>
-
 #include "GLSL.h"
 #include "Program.h"
 #include "Shape.h"
@@ -30,8 +23,6 @@
 
 using namespace std;
 using namespace glm;
-
-void initQuad();
 
 // Bookkeeping of out obj's
 const char *obj_files[] = {"/sentry.obj", "/laser.obj", "/floor.obj", "/pillar.obj", 
@@ -292,7 +283,7 @@ public:
 		glBindTexture(GL_TEXTURE_2D, inTex);
 		glBindVertexArray(quad_VertexArrayID);
 		
-		// applying of 'drawing' the FBO texture
+		// Applying of 'drawing' the FBO texture
 		blur_prog->bind();
 		glUniform1i(blur_prog->getUniform("texBuf"), 0);
 		glEnableVertexAttribArray(0);
@@ -427,7 +418,7 @@ public:
 
 		string dir = resourceDirectory + "/shaders";
 
-		// Initialize the texture GLSL program.
+		// Initialize the texture GLSL program for cards
 		card_prog = make_shared<Program>();
 		card_prog->setVerbose(true);
 		card_prog->setShaderNames(dir + "/card_tex_vert.glsl", dir + "/card_tex_frag.glsl");
@@ -444,7 +435,7 @@ public:
 		card_prog->addUniform("lightDropoff");
 		card_prog->addUniform("Texture0");
 
-		// Initialize the texture GLSL program.
+		// Initialize the texture GLSL program for the floor
 		floor_prog = make_shared<Program>();
 		floor_prog->setVerbose(true);
 		floor_prog->setShaderNames(dir + "/floor_tex_vert.glsl", dir + "/floor_tex_frag.glsl");
@@ -461,7 +452,7 @@ public:
 		floor_prog->addUniform("lightDropoff");
 		floor_prog->addUniform("Texture0");
 
-		// Initialize the GLSL program.
+		// Initialize the GLSL program for the skybox
 		cube_prog = make_shared<Program>();
 		cube_prog->setVerbose(true);
 		cube_prog->setShaderNames(dir + "/cube_vert.glsl", dir + "/cube_frag.glsl");
@@ -472,7 +463,7 @@ public:
 		cube_prog->addAttribute("vertPos");
 		cube_prog->addAttribute("vertNor");
 
-		// Initialize the GLSL program.
+		// Initialize the GLSL program for general use
 		prog = make_shared<Program>();
 		prog->setVerbose(true);
 		prog->setShaderNames(dir + "/simple_vert.glsl", dir + "/simple_frag.glsl");
@@ -492,7 +483,7 @@ public:
 		prog->addUniform("lightIntensity");
 		prog->addUniform("lightDropoff");
 
-		// Initialize the GLSL program.
+		// Initialize the GLSL program for the text renderer
 		text_prog = make_shared<Program>();
 		text_prog->setVerbose(true);
 		text_prog->setShaderNames(dir + "/text_vert.glsl", dir + "/text_frag.glsl");
@@ -502,7 +493,7 @@ public:
 		text_prog->addUniform("textcolor");
 		text_prog->addAttribute("vertex");
 
-		// Initialize the texture GLSL program.
+		// Initialize the texture GLSL program for slash animations
 		slash_prog = make_shared<Program>();
 		slash_prog->setVerbose(true);
 		slash_prog->setShaderNames(dir + "/slash_tex_vert.glsl", dir + "/slash_tex_frag.glsl");
@@ -519,6 +510,7 @@ public:
 		slash_prog->addUniform("lightDropoff");
 		slash_prog->addUniform("Texture0");
 
+		// Initialize the texture GLSL program for blurring
 		blur_prog = make_shared<Program>();
 		blur_prog->setVerbose(true);
 		blur_prog->setShaderNames(dir + "/blur_vert.glsl", dir + "/blur_frag.glsl");
@@ -545,9 +537,7 @@ public:
 	void initGeom(const std::string& resourceDirectory)
 	{
 
-		// Initialize mesh
-		// Load geometry
- 		// Some obj files contain material information.We'll ignore them for this assignment.
+		// Initialize mesh, Load geometry
  		vector<tinyobj::shape_t> TOshapes;
  		vector<tinyobj::material_t> objMaterials;
  		string errStr;
@@ -558,7 +548,6 @@ public:
 				cerr << errStr << endl;
 			} else {
 
-				//cout << "path:" << path << endl;
 				multishape = make_shared<Multishape>();
 
 				for (unsigned i = 0; i<TOshapes.size(); i++) {
@@ -576,7 +565,7 @@ public:
 		initQuad();
 	}
 	
-	// Code to load in the three textures
+	// Load in the textures
 	void initTex(const std::string& resourceDirectory){
 		texture0 = make_shared<Texture>();
 		texture0->setFilename(resourceDirectory + "/textures/Strike_FB.jpg");
@@ -1028,6 +1017,7 @@ public:
 
 	void updateHandState() {
 
+		// Update cooldown for drawing a new hand
 		refresh = std::max((int)ceil(refreshtime - glfwGetTime()), 0);
 
 		// Put more cards in hand if empty
@@ -1046,7 +1036,6 @@ public:
 		}
 
 		// Move hand down if throwing
-		
 		if (hand_state == HAND_THROWING) {
 			handshift = 1.9*pow((glfwGetTime() - throw_start - throw_duration/2), 2) - .13;
 		}
@@ -1265,9 +1254,6 @@ int main(int argc, char *argv[])
 
 	Application *application = new Application();
 
-	// Your main will always include a similar set up to establish your window
-	// and GL context, etc.
-
 	WindowManager *windowManager = new WindowManager();
 	windowManager->init(application->win_w, application->win_h);
 	windowManager->setEventCallbacks(application);
@@ -1276,9 +1262,8 @@ int main(int argc, char *argv[])
 	glfwSetInputMode(windowManager->getHandle(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);	
 	glfwSetCursorPos(windowManager->getHandle(), application->win_w/2, application->win_h/2);
 
-	// This is the code that will likely change program to program as you
-	// may need to initialize or set up different data and state
 
+	// Set up geometry
 	application->init(resourceDir);
 	application->initGeom(resourceDir);
 
