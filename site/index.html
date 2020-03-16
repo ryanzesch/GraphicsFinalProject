@@ -1,6 +1,7 @@
 
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
     <title>3D Slay the Spire</title>
+    <link href="https://fonts.googleapis.com/css?family=Kreon&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
@@ -27,6 +28,11 @@
           clear: both;
           display: table;
         }
+
+        * {
+        font-size: 110%;
+        font-family: Kreon;
+        }
         </style>
  </head>
  
@@ -34,7 +40,9 @@
  
     <div class="page-header">
     <center>
-       <h1>3D Slay the Spire<br><small>Ryan Zesch - CPE 471 Final Project - Winter 2020</small></h1>
+       <h1>3D Slay the Spire</h1>
+        <h2>Ryan Zesch - CPE 471 Final Project - Winter 2020</h2>
+        <h4><a href="https://github.com/ryanzesch/GraphicsFinalProject">Github Repo</a></h4>
     </center>
     </div>
  
@@ -42,8 +50,8 @@
        <h1>Description</h1>
        <p>
            Slay the Spire is a turn based card game by Mega Crit Games. For my final project, I have created a reimagining of this game as a 
-           first person real time game in which one must throw playing cards at enemey Sentries to survive. Avoid enemy lasers and defeat your foes
-           before they defeat you!
+           first person real time game in which one must throw playing cards at enemey Sentries to survive. Cards can deal damage, give you block, or
+           draw more cards into your hand. Avoid enemy lasers and defeat your foes before they defeat you!
        </p>
     </div>
  
@@ -125,7 +133,9 @@
               <div id="collapse1" class="panel-collapse collapse in">
                 <div class="panel-body">
                     I used a frame buffer object in order to do post processing on my rendered scene. In particular, an FBO was used to apply a Gaussian
-                    filter to the laser beams sentries shoot, in order to increase their realism.
+                    blur filter to the laser beams sentries shoot, in order to increase their realism. Gaussian blur was approximated using Pascal's triangle
+                    as described <a href="https://computergraphics.stackexchange.com/questions/39/how-is-gaussian-blur-implemented">here</a>. In implementing this, I used provided base code, along with
+                    the learn OpenGL tutorial on FBOs.
                 </div>
               </div>
             </div>
@@ -139,6 +149,10 @@
                 <div class="panel-body">
                     I implemented some simple physics in order to have thrown cards fly in a realistic way. When cards collide with enemies, they trigger a slashing
                     animation and then disappear. When they collide with the floor or roof, however, the cards stay stuck in place.
+                    <br>
+                    Physics was implemented by keeping track of the position and velocity of cards and updating these values each frame by applying a downwards force.
+                    In addition, cards curve when thrown in order to have a more realistic flight path, by applying a second force perpendicular to the thrown direction.
+                    Collision was implemented using implicit equations for planes (for the floor and roof) and cones (for enemies).
                 </div>
               </div>
             </div>
@@ -151,7 +165,7 @@
               <div id="collapse3" class="panel-collapse collapse">
                 <div class="panel-body">
                     In order to render text to the screen, I used the FreeType library. This was used to display a hud for a player including health, block, energy,
-                    and delay till a new hand can be drawn.
+                    and delay till a new hand can be drawn. The font used is Kreon, the same font used in the game this project is based on.
                 </div>
               </div>
             </div>
