@@ -90,11 +90,11 @@
             <td>Change selected card</td>
           </tr>
           <tr>
-            <td>F/LMOUSE</td>
+            <td>F/Lmouse</td>
             <td>Throw/play card</td>
           </tr>
           <tr>
-            <td>R/RMOUSE</td>
+            <td>R/Rmouse</td>
             <td>Refresh hand and energy</td>
           </tr>
           <tr>
@@ -170,16 +170,30 @@
               </div>
             </div>
             <div class="panel panel-default">
+              <div class="panel-heading">
+                <h4 class="panel-title">
+                  <a data-toggle="collapse" data-parent="#accordion" href="#collapse4">Texture Mapping</a>
+                </h4>
+              </div>
+              <div id="collapse4" class="panel-collapse collapse">
+                <div class="panel-body">
+                    Texture mapping was used on the brick floor, in addition to on card textures and slashing animations. Instead of modeling the exact geometry
+                    of these cards, fragments from the card texture were discarded in order to achieve the correct shape. Similarly, fragments were discarded in
+                    a similar was for the slashing animation. Card textures from Slay the Spire were used and sourced from 
+                    <a href="https://slay-the-spire.fandom.com/wiki/Cards">here</a>.
+                </div>
+              </div>
+            </div>
+            <div class="panel panel-default">
                 <div class="panel-heading">
                   <h4 class="panel-title">
-                    <a data-toggle="collapse" data-parent="#accordion" href="#collapse4">Other Features</a>
+                    <a data-toggle="collapse" data-parent="#accordion" href="#collapse5">Other Features</a>
                   </h4>
                 </div>
-                <div id="collapse4" class="panel-collapse collapse">
+                <div id="collapse5" class="panel-collapse collapse">
                   <div class="panel-body">
                     <ul>
-                        <li>Hierarchical Model</li>
-                        <li>Texture Mapping</li>
+                        <li>Hierarchical Modeling</li>
                         <li>Cubemap Skybox</li>
                         <li>Blinn-Phong Lighting</li>
                      </ul>

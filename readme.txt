@@ -2,7 +2,8 @@ Ryan Zesch
 Final Project - 3D Slay the Spire
 
 To build, make a build directory, run 'cmake ..' in that directory, make, and run with ./3DSlayTheSpire.
-This project requires the freetype library to be installed, along with openGL, GLM, and GLSL.
+This project requires the freetype library to be installed, along with openGL, GLM, and GLSL. The cmake
+file may need to be updated to include the freetype library if you are not compiling on Linux.
 
 Controls:
     W/S         - Dolly camera
